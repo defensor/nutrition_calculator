@@ -1,0 +1,274 @@
+import React, { useState, useEffect } from 'react';
+import * as api from '../api';
+import Button from '../components/ui/Button';
+import Input from '../components/ui/Input';
+import Select from '../components/ui/Select';
+import Modal from '../components/ui/Modal';
+
+const DishesPage = () => {
+  const [dishes, setDishes] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [search, setSearch] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingDish, setEditingDish] = useState(null);
+
+  // Form State
+  const [name, setName] = useState('');
+  const [isAutoWeight, setIsAutoWeight] = useState(true);
+  const [cookedWeight, setCookedWeight] = useState(0);
+  const [ingredients, setIngredients] = useState([]); // Array of { product_id, weight_raw, tempId, productName, productKcal... }
+
+  // Ingredient Add State
+  const [selectedProductId, setSelectedProductId] = useState('');
+  const [ingredientWeight, setIngredientWeight] = useState('');
+
+  useEffect(() => {
+    fetchDishes();
+    fetchProducts();
+  }, []);
+
+  const fetchDishes = async () => {
+    try {
+      const data = await api.getDishes();
+      setDishes(data);
+    } catch (error) {
+      console.error('Failed to fetch dishes', error);
+    }
+  };
+
+  const fetchProducts = async () => {
+    try {
+      const data = await api.getProducts();
+      setProducts(data);
+    } catch (error) {
+      console.error('Failed to fetch products', error);
+    }
+  };
+
+  const openCreateModal = () => {
+    setEditingDish(null);
+    setName('');
+    setIsAutoWeight(true);
+    setCookedWeight(0);
+    setIngredients([]);
+    setSelectedProductId('');
+    setIngredientWeight('');
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (dish) => {
+    setEditingDish(dish);
+    setName(dish.name);
+    setIsAutoWeight(dish.is_cooked_weight_auto);
+    setCookedWeight(dish.cooked_weight || 0);
+
+    // Transform ingredients for local state
+    // Dish ingredients come with product details nested
+    const initialIngredients = dish.ingredients.map(ing => ({
+      product_id: ing.product_id,
+      weight_raw: ing.weight_raw,
+      tempId: Math.random(), // helpful for keys
+      productName: ing.product ? ing.product.name : 'Unknown',
+      productKcal: ing.product ? ing.product.kcal : 0,
+    }));
+    setIngredients(initialIngredients);
+
+    setSelectedProductId('');
+    setIngredientWeight('');
+    setIsModalOpen(true);
+  };
+
+  const addIngredient = () => {
+    if (!selectedProductId || !ingredientWeight) return;
+
+    const product = products.find(p => p.id === parseInt(selectedProductId));
+    if (!product) return;
+
+    setIngredients([
+      ...ingredients,
+      {
+        product_id: product.id,
+        weight_raw: parseFloat(ingredientWeight),
+        tempId: Math.random(),
+        productName: product.name,
+        productKcal: product.kcal,
+      }
+    ]);
+
+    setSelectedProductId('');
+    setIngredientWeight('');
+  };
+
+  const removeIngredient = (tempId) => {
+    setIngredients(ingredients.filter(i => i.tempId !== tempId));
+  };
+
+  const calculateTotalRawWeight = () => {
+    return ingredients.reduce((sum, item) => sum + item.weight_raw, 0);
+  };
+
+  const calculateDishMacros = () => {
+    const rawWeight = calculateTotalRawWeight();
+    const finalWeight = isAutoWeight ? rawWeight : parseFloat(cookedWeight) || rawWeight;
+
+    if (finalWeight <= 0) return { kcal: 0 };
+
+    // Calculate total raw macros
+    let totalKcal = 0;
+    ingredients.forEach(item => {
+       const p = products.find(prod => prod.id === item.product_id);
+       if (p) {
+         totalKcal += (p.kcal * item.weight_raw) / 100;
+       }
+    });
+
+    // Per 100g of FINAL dish
+    const factor = 100 / finalWeight;
+    return {
+      kcal: (totalKcal * factor).toFixed(1),
+    };
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    const payload = {
+      name,
+      is_cooked_weight_auto: isAutoWeight,
+      cooked_weight: isAutoWeight ? null : parseFloat(cookedWeight),
+      ingredients: ingredients.map(i => ({
+        product_id: i.product_id,
+        weight_raw: i.weight_raw
+      }))
+    };
+
+    try {
+      if (editingDish) {
+        await api.updateDish(editingDish.id, payload);
+      } else {
+        await api.createDish(payload);
+      }
+      setIsModalOpen(false);
+      fetchDishes();
+    } catch (error) {
+      console.error('Failed to save dish', error);
+    }
+  };
+
+  const macros = calculateDishMacros();
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold">Dishes</h1>
+        <Button onClick={openCreateModal}>Create Dish</Button>
+      </div>
+
+      <div className="bg-white shadow overflow-hidden rounded-md">
+        <ul className="divide-y divide-gray-200">
+          {dishes.map((dish) => (
+            <li
+              key={dish.id}
+              className="px-6 py-4 hover:bg-gray-50 cursor-pointer flex justify-between items-center"
+              onClick={() => openEditModal(dish)}
+            >
+              <div>
+                <p className="text-sm font-medium text-gray-900">{dish.name}</p>
+                <p className="text-sm text-gray-500">
+                  Ingredients: {dish.ingredients.length} | Cooked: {dish.cooked_weight || 'Auto'}g
+                </p>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title={editingDish ? 'Edit Dish' : 'Create Dish'}
+      >
+        <div className="space-y-4">
+          <Input
+            label="Dish Name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+
+          <div className="border-t pt-4">
+            <h3 className="font-medium mb-2">Ingredients</h3>
+            <div className="space-y-2 mb-4">
+              {ingredients.map((item) => (
+                <div key={item.tempId} className="flex justify-between items-center text-sm bg-gray-50 p-2 rounded">
+                  <span>{item.productName} ({item.weight_raw}g)</span>
+                  <button onClick={() => removeIngredient(item.tempId)} className="text-red-500 hover:text-red-700">
+                    &times;
+                  </button>
+                </div>
+              ))}
+              {ingredients.length === 0 && <p className="text-sm text-gray-500">No ingredients added.</p>}
+            </div>
+
+            <div className="flex space-x-2 items-end">
+              <div className="flex-1">
+                 <Select
+                    label="Add Product"
+                    value={selectedProductId}
+                    onChange={(e) => setSelectedProductId(e.target.value)}
+                    options={[
+                        { label: 'Select product...', value: '' },
+                        ...products.map(p => ({ label: p.name, value: p.id }))
+                    ]}
+                 />
+              </div>
+              <div className="w-24">
+                <Input
+                  label="Weight (g)"
+                  type="number"
+                  value={ingredientWeight}
+                  onChange={(e) => setIngredientWeight(e.target.value)}
+                />
+              </div>
+              <Button onClick={addIngredient} variant="secondary">Add</Button>
+            </div>
+          </div>
+
+          <div className="border-t pt-4">
+            <label className="flex items-center space-x-2 mb-2">
+              <input
+                type="checkbox"
+                checked={isAutoWeight}
+                onChange={(e) => setIsAutoWeight(e.target.checked)}
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              />
+              <span className="text-sm text-gray-700">Auto-calculate cooked weight (sum of raw)</span>
+            </label>
+
+            {!isAutoWeight && (
+              <Input
+                label="Final Cooked Weight (g)"
+                type="number"
+                value={cookedWeight}
+                onChange={(e) => setCookedWeight(e.target.value)}
+              />
+            )}
+
+            <div className="mt-2 text-sm text-gray-600 bg-blue-50 p-2 rounded">
+               <p>Total Raw Weight: {calculateTotalRawWeight()}g</p>
+               <p>Calculated Caloric Density: <strong>{macros.kcal} kcal / 100g</strong></p>
+            </div>
+          </div>
+
+          <div className="flex justify-end space-x-3 pt-4">
+            <Button variant="secondary" onClick={() => setIsModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSubmit}>Save Dish</Button>
+          </div>
+        </div>
+      </Modal>
+    </div>
+  );
+};
+
+export default DishesPage;
