@@ -68,7 +68,13 @@ def calculate_log_macros(entry: models.LogEntry) -> schemas.LogEntry:
 # Users
 @app.post("/users/", response_model=schemas.User)
 def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
-    return crud.create_user(db=db, user=user)
+    try:
+        return crud.create_user(db=db, user=user)
+    except Exception as e:
+        # In a real app we would catch specific IntegrityError
+        if "UNIQUE constraint failed" in str(e) or "unique constraint" in str(e).lower():
+            raise HTTPException(status_code=400, detail="User already exists")
+        raise e
 
 @app.get("/users/", response_model=List[schemas.User])
 def read_users(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):

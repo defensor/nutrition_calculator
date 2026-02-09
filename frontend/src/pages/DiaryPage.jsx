@@ -27,6 +27,10 @@ const DiaryPage = () => {
     isAteAll: true, // for dishes
   });
 
+  // Quick Create State
+  const [isQuickCreateOpen, setIsQuickCreateOpen] = useState(false);
+  const [quickProduct, setQuickProduct] = useState({ name: '', kcal: 0, protein: 0, fat: 0, carbs: 0 });
+
   useEffect(() => {
     fetchUsers();
     fetchProductsAndDishes();
@@ -77,7 +81,7 @@ const DiaryPage = () => {
         setUsers([...users, newUser]);
         setCurrentUser(newUser.id);
       } catch (error) {
-        alert("Failed to create user");
+        alert("Failed to create user: " + (error.response?.data?.detail || error.message));
       }
     }
   };
@@ -88,6 +92,7 @@ const DiaryPage = () => {
     setSelectedItem(null);
     setEntryDetails({ weight: '', cookedWeight: '', isAteAll: true });
     setIsModalOpen(true);
+    setIsQuickCreateOpen(false);
   };
 
   const calculateDishRawWeight = (dish) => {
@@ -114,6 +119,20 @@ const DiaryPage = () => {
     }
   };
 
+  const handleQuickCreate = async (e) => {
+      e.preventDefault();
+      try {
+          const newProduct = await api.createProduct(quickProduct);
+          setProducts([...products, newProduct]);
+
+          // Select immediately
+          handleSearchSelect(newProduct, 'product');
+          setIsQuickCreateOpen(false);
+          setQuickProduct({ name: '', kcal: 0, protein: 0, fat: 0, carbs: 0 });
+      } catch (error) {
+          alert('Failed to create product');
+      }
+  };
 
   const handleAddEntry = async () => {
     if (!selectedItem) return;
@@ -285,9 +304,29 @@ const DiaryPage = () => {
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={`Add to ${selectedMealType}`}
+        title={isQuickCreateOpen ? "Create New Product" : `Add to ${selectedMealType}`}
       >
-        {!selectedItem ? (
+        {isQuickCreateOpen ? (
+           <form onSubmit={handleQuickCreate} className="space-y-4">
+              <Input
+                label="Name"
+                value={quickProduct.name}
+                onChange={(e) => setQuickProduct({...quickProduct, name: e.target.value})}
+                required
+                autoFocus
+              />
+              <div className="grid grid-cols-2 gap-4">
+                 <Input label="Kcal" type="number" step="0.1" value={quickProduct.kcal} onChange={(e) => setQuickProduct({...quickProduct, kcal: parseFloat(e.target.value)})} />
+                 <Input label="Protein" type="number" step="0.1" value={quickProduct.protein} onChange={(e) => setQuickProduct({...quickProduct, protein: parseFloat(e.target.value)})} />
+                 <Input label="Fat" type="number" step="0.1" value={quickProduct.fat} onChange={(e) => setQuickProduct({...quickProduct, fat: parseFloat(e.target.value)})} />
+                 <Input label="Carbs" type="number" step="0.1" value={quickProduct.carbs} onChange={(e) => setQuickProduct({...quickProduct, carbs: parseFloat(e.target.value)})} />
+              </div>
+              <div className="flex justify-between pt-4">
+                 <Button variant="ghost" onClick={() => setIsQuickCreateOpen(false)}>Back</Button>
+                 <Button type="submit">Create & Select</Button>
+              </div>
+           </form>
+        ) : !selectedItem ? (
           <div className="space-y-4">
             <Input
               placeholder="Search food..."
@@ -307,7 +346,15 @@ const DiaryPage = () => {
                 </div>
               ))}
               {search && searchResults.length === 0 && (
-                 <div className="p-2 text-gray-500">No results found.</div>
+                 <div className="p-4 text-center">
+                    <p className="text-gray-500 mb-2">No results found.</p>
+                    <Button onClick={() => {
+                        setQuickProduct({ ...quickProduct, name: search });
+                        setIsQuickCreateOpen(true);
+                    }}>
+                       Create "{search}"
+                    </Button>
+                 </div>
               )}
             </div>
           </div>
