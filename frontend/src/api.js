@@ -24,4 +24,8 @@ export const createLogEntry = (entry) => api.post('/logs/', entry).then(res => r
 export const updateLogEntry = (id, data) => api.put(`/logs/${id}`, data).then(res => res.data);
 export const deleteLogEntry = (id) => api.delete(`/logs/${id}`).then(res => res.data);
 
+export const addLogItem = (entryId, data) => api.post(`/logs/${entryId}/items`, data).then(res => res.data);
+export const updateLogItem = (itemId, data) => api.put(`/log-items/${itemId}`, data).then(res => res.data);
+export const deleteLogItem = (itemId) => api.delete(`/log-items/${itemId}`).then(res => res.data);
+
 export default api;

@@ -36,16 +36,120 @@ const SortableItem = ({ id, children }) => {
   );
 };
 
+const LogEntryView = ({ log, onDelete, onUpdate }) => {
+    const [isExpanded, setIsExpanded] = useState(false);
+    const [items, setItems] = useState(log.items || []);
+    const [editItem, setEditItem] = useState(null);
+    const [addItemWeight, setAddItemWeight] = useState('');
+    const [selectedProduct, setSelectedProduct] = useState('');
+    const [products, setProducts] = useState([]); // Need products for adding new items
+
+    // We need to fetch products if we want to add new items here.
+    // Or we can pass products from parent? Passing is better to avoid redundant fetches.
+    // Ideally use context or prop. Let's assume passed in prop for now or fetch.
+
+    useEffect(() => {
+        setItems(log.items || []);
+    }, [log]);
+
+    const handleToggleExpand = () => {
+        setIsExpanded(!isExpanded);
+    };
+
+    const handleUpdateItem = async (itemId, weight) => {
+        try {
+            const updatedLog = await api.updateLogItem(itemId, { weight_raw: parseFloat(weight) });
+            onUpdate(updatedLog);
+        } catch (error) {
+            console.error('Failed to update item', error);
+        }
+    };
+
+    const handleDeleteItem = async (itemId) => {
+        if (!confirm('Remove this ingredient?')) return;
+        try {
+            const updatedLog = await api.deleteLogItem(itemId);
+            onUpdate(updatedLog);
+        } catch (error) {
+            console.error('Failed to delete item', error);
+        }
+    };
+
+    // If we want to add items, we need a small form inside the expanded view
+    // Or a modal.
+
+    return (
+        <div className="bg-white p-4 border-b group">
+            <div className="flex justify-between items-center">
+                <div className="cursor-pointer flex-1" onClick={handleToggleExpand}>
+                    <div className="font-medium flex items-center gap-2">
+                        {log.name}
+                        <span className="text-xs text-gray-400">{isExpanded ? '▼' : '▶'}</span>
+                    </div>
+                    <div className="text-sm text-gray-500">
+                       {Math.round(log.consumed_weight)}g consumed
+                       {log.cooked_weight !== log.consumed_weight && ` (from ${Math.round(log.cooked_weight)}g)`}
+                    </div>
+                </div>
+                <div className="flex items-center gap-4">
+                     <div className="text-right text-sm">
+                        <div>{Math.round(log.total_kcal)} kcal</div>
+                        <div className="text-gray-400 text-xs">
+                          P:{Math.round(log.total_protein)} F:{Math.round(log.total_fat)} C:{Math.round(log.total_carbs)}
+                        </div>
+                     </div>
+                     <button
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={() => onDelete(log.id)}
+                        className="text-red-400 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                     >
+                        &times;
+                     </button>
+                </div>
+            </div>
+
+            {isExpanded && (
+                <div className="mt-4 pl-4 border-l-2 border-gray-100 space-y-2">
+                    <h4 className="text-xs font-semibold text-gray-500 uppercase">Ingredients</h4>
+                    {items.map(item => (
+                        <div key={item.id} className="flex justify-between items-center text-sm">
+                            <span>{item.product?.name || 'Unknown'}</span>
+                            <div className="flex items-center gap-2">
+                                <input
+                                    type="number"
+                                    className="w-16 px-1 border rounded text-right"
+                                    defaultValue={item.weight_raw}
+                                    onBlur={(e) => {
+                                        if (parseFloat(e.target.value) !== item.weight_raw) {
+                                            handleUpdateItem(item.id, e.target.value);
+                                        }
+                                    }}
+                                />
+                                <span className="text-gray-500">g</span>
+                                <button
+                                    onClick={() => handleDeleteItem(item.id)}
+                                    className="text-red-400 hover:text-red-600"
+                                >
+                                    &times;
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                    {/* Add Item Button could go here */}
+                </div>
+            )}
+        </div>
+    );
+};
+
 const DiaryPage = () => {
   const { date: routeDate } = useParams();
   const navigate = useNavigate();
   const { currentUser, setCurrentUser, users, handleCreateUser } = useUser();
 
-  // Use route date or today
   const date = routeDate || new Date().toISOString().split('T')[0];
 
   const [logs, setLogs] = useState([]);
-
   const [products, setProducts] = useState([]);
   const [dishes, setDishes] = useState([]);
 
@@ -53,11 +157,11 @@ const DiaryPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedMealType, setSelectedMealType] = useState('');
   const [search, setSearch] = useState('');
-  const [selectedItem, setSelectedItem] = useState(null); // Product or Dish object
+  const [selectedItem, setSelectedItem] = useState(null);
   const [entryDetails, setEntryDetails] = useState({
-    weight: '', // consumed weight
-    cookedWeight: '', // for dishes
-    isAteAll: true, // for dishes
+    weight: '',
+    cookedWeight: '',
+    isAteAll: true,
   });
 
   // Quick Create State
@@ -113,7 +217,7 @@ const DiaryPage = () => {
   };
 
   const handleSearchSelect = (item, type) => {
-    setSelectedItem({ ...item, type }); // type: 'product' or 'dish'
+    setSelectedItem({ ...item, type });
 
     if (type === 'dish') {
       const defaultCooked = item.cooked_weight || calculateDishRawWeight(item);
@@ -124,7 +228,7 @@ const DiaryPage = () => {
       });
     } else {
       setEntryDetails({
-        weight: '100', // default 100g
+        weight: '100',
         cookedWeight: '',
         isAteAll: false
       });
@@ -195,7 +299,10 @@ const DiaryPage = () => {
       }
   };
 
-  // Drag and Drop Logic
+  const handleLogUpdate = (updatedLog) => {
+      setLogs(logs.map(l => l.id === updatedLog.id ? updatedLog : l));
+  };
+
   const handleDragStart = (event) => {
       setActiveDragId(event.active.id);
   };
@@ -207,17 +314,11 @@ const DiaryPage = () => {
       if (!over) return;
 
       const draggedId = active.id;
-      // 'over.id' could be a container (meal-container-lunch) or an item (log-123)
-      // We encode the meal in the Droppable id or logic
 
       let newMealType = null;
-
-      // Determine target meal type
       if (MEAL_TYPES.includes(over.id)) {
-          // Dropped on empty container/header
           newMealType = over.id;
       } else {
-          // Dropped on another item, find its meal type
           const overLog = logs.find(l => `log-${l.id}` === over.id);
           if (overLog) {
               newMealType = overLog.meal_type;
@@ -228,21 +329,18 @@ const DiaryPage = () => {
           const log = logs.find(l => `log-${l.id}` === draggedId);
           if (log && log.meal_type !== newMealType) {
               try {
-                  // Optimistic update
                   const updatedLogs = logs.map(l => l.id === log.id ? { ...l, meal_type: newMealType } : l);
                   setLogs(updatedLogs);
-
                   await api.updateLogEntry(log.id, { meal_type: newMealType });
-                  fetchLogs(); // Sync with backend calculation
+                  fetchLogs();
               } catch (error) {
                   console.error('Failed to move item', error);
-                  fetchLogs(); // Revert
+                  fetchLogs();
               }
           }
       }
   };
 
-  // Calculations
   const getDayTotals = () => {
     return logs.reduce((acc, log) => ({
       kcal: acc.kcal + (log.total_kcal || 0),
@@ -260,7 +358,6 @@ const DiaryPage = () => {
 
   return (
     <div className="space-y-6 pb-20">
-      {/* Header Controls */}
       <div className="flex flex-col sm:flex-row gap-4 justify-between bg-white p-4 rounded shadow">
         <div className="flex items-center gap-2">
             <h2 className="text-xl font-bold">Diary for</h2>
@@ -284,7 +381,6 @@ const DiaryPage = () => {
             }), { kcal: 0, protein: 0, fat: 0, carbs: 0 });
 
             return (
-              // Droppable Container for Meal
               <SortableContext
                   key={meal}
                   id={meal}
@@ -293,7 +389,6 @@ const DiaryPage = () => {
               >
                   <div className="bg-white rounded shadow overflow-hidden">
                     <div className="px-4 py-3 bg-gray-50 border-b flex justify-between items-center" id={meal}>
-                      {/* We make the header a drop zone too by giving the container the ID */}
                       <h2 className="text-lg font-semibold capitalize">{meal}</h2>
                       <div className="text-sm text-gray-500">
                         {Math.round(mealTotals.kcal)} kcal
@@ -302,34 +397,14 @@ const DiaryPage = () => {
                     <div className="divide-y min-h-[50px] bg-white">
                       {mealLogs.map(log => (
                         <SortableItem key={`log-${log.id}`} id={`log-${log.id}`}>
-                            <div className="p-4 flex justify-between items-center hover:bg-gray-50 group bg-white">
-                              <div>
-                                <div className="font-medium">{log.name}</div>
-                                <div className="text-sm text-gray-500">
-                                   {Math.round(log.consumed_weight)}g consumed
-                                   {log.cooked_weight !== log.consumed_weight && ` (from ${Math.round(log.cooked_weight)}g)`}
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-4">
-                                 <div className="text-right text-sm">
-                                    <div>{Math.round(log.total_kcal)} kcal</div>
-                                    <div className="text-gray-400 text-xs">
-                                      P:{Math.round(log.total_protein)} F:{Math.round(log.total_fat)} C:{Math.round(log.total_carbs)}
-                                    </div>
-                                 </div>
-                                 <button
-                                    onPointerDown={(e) => e.stopPropagation()} // Prevent drag start on delete click
-                                    onClick={() => handleDeleteEntry(log.id)}
-                                    className="text-red-400 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-                                 >
-                                    &times;
-                                 </button>
-                              </div>
-                            </div>
+                            <LogEntryView
+                                log={log}
+                                onDelete={handleDeleteEntry}
+                                onUpdate={handleLogUpdate}
+                            />
                         </SortableItem>
                       ))}
                       {mealLogs.length === 0 && (
-                         // Make empty container droppable
                          <SortableItem id={meal}>
                             <div className="p-4 text-center text-gray-400 text-sm italic h-full">Drag items here</div>
                          </SortableItem>
@@ -354,7 +429,6 @@ const DiaryPage = () => {
           </DragOverlay>
       </DndContext>
 
-      {/* Day Summary */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-4 shadow-lg z-10">
          <div className="max-w-4xl mx-auto flex justify-between items-center">
             <div className="font-bold text-lg">Day Total</div>
@@ -367,7 +441,6 @@ const DiaryPage = () => {
          </div>
       </div>
 
-      {/* Add Modal */}
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}

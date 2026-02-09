@@ -76,6 +76,9 @@ class LogEntryItemBase(BaseModel):
 class LogEntryItemCreate(LogEntryItemBase):
     pass
 
+class LogEntryItemUpdate(BaseModel):
+    weight_raw: float
+
 class LogEntryItem(LogEntryItemBase):
     id: int
     product: Optional[Product] = None
