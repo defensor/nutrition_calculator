@@ -9,3 +9,7 @@
   ➜  Network: use --host to expose
 3:00:42 PM [vite] (client) hmr update /src/components/ui/Modal.jsx
 3:11:46 PM [vite] (client) hmr update /src/pages/DiaryPage.jsx
+8:12:21 PM [vite] vite.config.js changed, restarting server...
+8:12:21 PM [vite] vite.config.js changed, restarting server...
+8:12:21 PM [vite] (client) Re-optimizing dependencies because lockfile has changed
+8:12:22 PM [vite] server restarted.
