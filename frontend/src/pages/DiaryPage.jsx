@@ -1,16 +1,49 @@
 import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import * as api from '../api';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import Select from '../components/ui/Select';
 import Modal from '../components/ui/Modal';
+import { useUser } from '../context/UserContext';
+import { DndContext, closestCenter, DragOverlay } from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'];
 
+// Sortable Item Component
+const SortableItem = ({ id, children }) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+      {children}
+    </div>
+  );
+};
+
 const DiaryPage = () => {
-  const [users, setUsers] = useState([]);
-  const [currentUser, setCurrentUser] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const { date: routeDate } = useParams();
+  const navigate = useNavigate();
+  const { currentUser, setCurrentUser, users, handleCreateUser } = useUser();
+
+  // Use route date or today
+  const date = routeDate || new Date().toISOString().split('T')[0];
+
   const [logs, setLogs] = useState([]);
 
   const [products, setProducts] = useState([]);
@@ -30,9 +63,9 @@ const DiaryPage = () => {
   // Quick Create State
   const [isQuickCreateOpen, setIsQuickCreateOpen] = useState(false);
   const [quickProduct, setQuickProduct] = useState({ name: '', kcal: 0, protein: 0, fat: 0, carbs: 0 });
+  const [activeDragId, setActiveDragId] = useState(null);
 
   useEffect(() => {
-    fetchUsers();
     fetchProductsAndDishes();
   }, []);
 
@@ -41,18 +74,6 @@ const DiaryPage = () => {
       fetchLogs();
     }
   }, [currentUser, date]);
-
-  const fetchUsers = async () => {
-    try {
-      const data = await api.getUsers();
-      setUsers(data);
-      if (data.length > 0 && !currentUser) {
-        setCurrentUser(data[0].id);
-      }
-    } catch (error) {
-      console.error('Failed to fetch users', error);
-    }
-  };
 
   const fetchProductsAndDishes = async () => {
     try {
@@ -73,17 +94,8 @@ const DiaryPage = () => {
     }
   };
 
-  const handleCreateUser = async () => {
-    const name = prompt("Enter new user name:");
-    if (name) {
-      try {
-        const newUser = await api.createUser(name);
-        setUsers([...users, newUser]);
-        setCurrentUser(newUser.id);
-      } catch (error) {
-        alert("Failed to create user: " + (error.response?.data?.detail || error.message));
-      }
-    }
+  const handleDateChange = (e) => {
+      navigate(`/diary/${e.target.value}`);
   };
 
   const openAddModal = (mealType) => {
@@ -124,8 +136,6 @@ const DiaryPage = () => {
       try {
           const newProduct = await api.createProduct(quickProduct);
           setProducts([...products, newProduct]);
-
-          // Select immediately
           handleSearchSelect(newProduct, 'product');
           setIsQuickCreateOpen(false);
           setQuickProduct({ name: '', kcal: 0, protein: 0, fat: 0, carbs: 0 });
@@ -153,14 +163,12 @@ const DiaryPage = () => {
       payload.consumed_weight = weight;
       payload.items = [{ product_id: selectedItem.id, weight_raw: weight }];
     } else {
-      // Dish
       const cookedWeight = parseFloat(entryDetails.cookedWeight);
       const consumedWeight = entryDetails.isAteAll ? cookedWeight : parseFloat(entryDetails.weight);
 
       payload.cooked_weight = cookedWeight;
       payload.consumed_weight = consumedWeight;
 
-      // Copy ingredients
       payload.items = selectedItem.ingredients.map(ing => ({
         product_id: ing.product_id,
         weight_raw: ing.weight_raw
@@ -187,6 +195,53 @@ const DiaryPage = () => {
       }
   };
 
+  // Drag and Drop Logic
+  const handleDragStart = (event) => {
+      setActiveDragId(event.active.id);
+  };
+
+  const handleDragEnd = async (event) => {
+      const { active, over } = event;
+      setActiveDragId(null);
+
+      if (!over) return;
+
+      const draggedId = active.id;
+      // 'over.id' could be a container (meal-container-lunch) or an item (log-123)
+      // We encode the meal in the Droppable id or logic
+
+      let newMealType = null;
+
+      // Determine target meal type
+      if (MEAL_TYPES.includes(over.id)) {
+          // Dropped on empty container/header
+          newMealType = over.id;
+      } else {
+          // Dropped on another item, find its meal type
+          const overLog = logs.find(l => `log-${l.id}` === over.id);
+          if (overLog) {
+              newMealType = overLog.meal_type;
+          }
+      }
+
+      if (newMealType) {
+          const log = logs.find(l => `log-${l.id}` === draggedId);
+          if (log && log.meal_type !== newMealType) {
+              try {
+                  // Optimistic update
+                  const updatedLogs = logs.map(l => l.id === log.id ? { ...l, meal_type: newMealType } : l);
+                  setLogs(updatedLogs);
+
+                  await api.updateLogEntry(log.id, { meal_type: newMealType });
+                  fetchLogs(); // Sync with backend calculation
+              } catch (error) {
+                  console.error('Failed to move item', error);
+                  fetchLogs(); // Revert
+              }
+          }
+      }
+  };
+
   // Calculations
   const getDayTotals = () => {
     return logs.reduce((acc, log) => ({
@@ -198,8 +253,6 @@ const DiaryPage = () => {
   };
 
   const totals = getDayTotals();
-
-  // Filtered search results
   const searchResults = search.length > 0 ? [
     ...products.filter(p => p.name.toLowerCase().includes(search.toLowerCase())).map(p => ({ ...p, type: 'product' })),
     ...dishes.filter(d => d.name.toLowerCase().includes(search.toLowerCase())).map(d => ({ ...d, type: 'dish' }))
@@ -209,86 +262,100 @@ const DiaryPage = () => {
     <div className="space-y-6 pb-20">
       {/* Header Controls */}
       <div className="flex flex-col sm:flex-row gap-4 justify-between bg-white p-4 rounded shadow">
-        <div className="flex items-end gap-2">
-            <div className="flex-1">
-                <Select
-                    label="User"
-                    value={currentUser}
-                    onChange={(e) => setCurrentUser(e.target.value)}
-                    options={users.map(u => ({ label: u.name, value: u.id }))}
-                />
-            </div>
-            <Button onClick={handleCreateUser} variant="secondary" className="mb-[1px]">+</Button>
-        </div>
-        <div>
-          <Input
-            label="Date"
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-          />
+        <div className="flex items-center gap-2">
+            <h2 className="text-xl font-bold">Diary for</h2>
+            <Input
+                type="date"
+                value={date}
+                onChange={handleDateChange}
+                className="w-40"
+            />
         </div>
       </div>
 
-      {/* Meal Sections */}
-      {MEAL_TYPES.map(meal => {
-        const mealLogs = logs.filter(l => l.meal_type === meal);
-        const mealTotals = mealLogs.reduce((acc, log) => ({
-             kcal: acc.kcal + (log.total_kcal || 0),
-             protein: acc.protein + (log.total_protein || 0),
-             fat: acc.fat + (log.total_fat || 0),
-             carbs: acc.carbs + (log.total_carbs || 0),
-        }), { kcal: 0, protein: 0, fat: 0, carbs: 0 });
+      <DndContext onDragStart={handleDragStart} onDragEnd={handleDragEnd} collisionDetection={closestCenter}>
+          {MEAL_TYPES.map(meal => {
+            const mealLogs = logs.filter(l => l.meal_type === meal);
+            const mealTotals = mealLogs.reduce((acc, log) => ({
+                 kcal: acc.kcal + (log.total_kcal || 0),
+                 protein: acc.protein + (log.total_protein || 0),
+                 fat: acc.fat + (log.total_fat || 0),
+                 carbs: acc.carbs + (log.total_carbs || 0),
+            }), { kcal: 0, protein: 0, fat: 0, carbs: 0 });
 
-        return (
-          <div key={meal} className="bg-white rounded shadow overflow-hidden">
-            <div className="px-4 py-3 bg-gray-50 border-b flex justify-between items-center">
-              <h2 className="text-lg font-semibold capitalize">{meal}</h2>
-              <div className="text-sm text-gray-500">
-                {Math.round(mealTotals.kcal)} kcal
-              </div>
-            </div>
-            <div className="divide-y">
-              {mealLogs.map(log => (
-                <div key={log.id} className="p-4 flex justify-between items-center hover:bg-gray-50 group">
-                  <div>
-                    <div className="font-medium">{log.name}</div>
-                    <div className="text-sm text-gray-500">
-                       {Math.round(log.consumed_weight)}g consumed
-                       {log.cooked_weight !== log.consumed_weight && ` (from ${Math.round(log.cooked_weight)}g)`}
+            return (
+              // Droppable Container for Meal
+              <SortableContext
+                  key={meal}
+                  id={meal}
+                  items={mealLogs.map(l => `log-${l.id}`)}
+                  strategy={verticalListSortingStrategy}
+              >
+                  <div className="bg-white rounded shadow overflow-hidden">
+                    <div className="px-4 py-3 bg-gray-50 border-b flex justify-between items-center" id={meal}>
+                      {/* We make the header a drop zone too by giving the container the ID */}
+                      <h2 className="text-lg font-semibold capitalize">{meal}</h2>
+                      <div className="text-sm text-gray-500">
+                        {Math.round(mealTotals.kcal)} kcal
+                      </div>
+                    </div>
+                    <div className="divide-y min-h-[50px] bg-white">
+                      {mealLogs.map(log => (
+                        <SortableItem key={`log-${log.id}`} id={`log-${log.id}`}>
+                            <div className="p-4 flex justify-between items-center hover:bg-gray-50 group bg-white">
+                              <div>
+                                <div className="font-medium">{log.name}</div>
+                                <div className="text-sm text-gray-500">
+                                   {Math.round(log.consumed_weight)}g consumed
+                                   {log.cooked_weight !== log.consumed_weight && ` (from ${Math.round(log.cooked_weight)}g)`}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-4">
+                                 <div className="text-right text-sm">
+                                    <div>{Math.round(log.total_kcal)} kcal</div>
+                                    <div className="text-gray-400 text-xs">
+                                      P:{Math.round(log.total_protein)} F:{Math.round(log.total_fat)} C:{Math.round(log.total_carbs)}
+                                    </div>
+                                 </div>
+                                 <button
+                                    onPointerDown={(e) => e.stopPropagation()} // Prevent drag start on delete click
+                                    onClick={() => handleDeleteEntry(log.id)}
+                                    className="text-red-400 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                                 >
+                                    &times;
+                                 </button>
+                              </div>
+                            </div>
+                        </SortableItem>
+                      ))}
+                      {mealLogs.length === 0 && (
+                         // Make empty container droppable
+                         <SortableItem id={meal}>
+                            <div className="p-4 text-center text-gray-400 text-sm italic h-full">Drag items here</div>
+                         </SortableItem>
+                      )}
+                    </div>
+                    <div className="p-2 bg-gray-50 border-t">
+                       <Button variant="ghost" className="w-full text-sm py-1" onClick={() => openAddModal(meal)}>
+                         + Add Food
+                       </Button>
                     </div>
                   </div>
-                  <div className="flex items-center gap-4">
-                     <div className="text-right text-sm">
-                        <div>{Math.round(log.total_kcal)} kcal</div>
-                        <div className="text-gray-400 text-xs">
-                          P:{Math.round(log.total_protein)} F:{Math.round(log.total_fat)} C:{Math.round(log.total_carbs)}
-                        </div>
-                     </div>
-                     <button
-                        onClick={() => handleDeleteEntry(log.id)}
-                        className="text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
-                     >
-                        &times;
-                     </button>
+              </SortableContext>
+            );
+          })}
+
+          <DragOverlay>
+              {activeDragId ? (
+                  <div className="bg-white p-4 shadow-lg rounded border opacity-80 w-full">
+                      Dragging...
                   </div>
-                </div>
-              ))}
-              {mealLogs.length === 0 && (
-                <div className="p-4 text-center text-gray-400 text-sm italic">No entries</div>
-              )}
-            </div>
-            <div className="p-2 bg-gray-50 border-t">
-               <Button variant="ghost" className="w-full text-sm py-1" onClick={() => openAddModal(meal)}>
-                 + Add Food
-               </Button>
-            </div>
-          </div>
-        );
-      })}
+              ) : null}
+          </DragOverlay>
+      </DndContext>
 
       {/* Day Summary */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-4 shadow-lg">
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-4 shadow-lg z-10">
          <div className="max-w-4xl mx-auto flex justify-between items-center">
             <div className="font-bold text-lg">Day Total</div>
             <div className="flex gap-4 text-sm sm:text-base">

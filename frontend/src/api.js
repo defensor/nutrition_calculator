@@ -21,6 +21,7 @@ export const deleteDish = (id) => api.delete(`/dishes/${id}`).then(res => res.da
 
 export const getLogs = (date, userId) => api.get(`/logs/${date}`, { params: { user_id: userId } }).then(res => res.data);
 export const createLogEntry = (entry) => api.post('/logs/', entry).then(res => res.data);
+export const updateLogEntry = (id, data) => api.put(`/logs/${id}`, data).then(res => res.data);
 export const deleteLogEntry = (id) => api.delete(`/logs/${id}`).then(res => res.data);
 
 export default api;

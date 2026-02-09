@@ -20,6 +20,11 @@ const DishesPage = () => {
   // Ingredient Add State
   const [selectedProductId, setSelectedProductId] = useState('');
   const [ingredientWeight, setIngredientWeight] = useState('');
+  const [searchIngredient, setSearchIngredient] = useState(''); // Text input for search/create
+
+  // Quick Create State
+  const [isQuickCreateOpen, setIsQuickCreateOpen] = useState(false);
+  const [quickProduct, setQuickProduct] = useState({ name: '', kcal: 0, protein: 0, fat: 0, carbs: 0 });
 
   const [error, setError] = useState(null);
 
@@ -54,6 +59,7 @@ const DishesPage = () => {
     setIngredients([]);
     setSelectedProductId('');
     setIngredientWeight('');
+    setSearchIngredient('');
     setError(null);
     setIsModalOpen(true);
   };
@@ -64,13 +70,12 @@ const DishesPage = () => {
     setIsAutoWeight(dish.is_cooked_weight_auto);
     setCookedWeight(dish.cooked_weight || 0);
     setError(null);
+    setSearchIngredient('');
 
-    // Transform ingredients for local state
-    // Dish ingredients come with product details nested
     const initialIngredients = dish.ingredients.map(ing => ({
       product_id: ing.product_id,
       weight_raw: ing.weight_raw,
-      tempId: Math.random(), // helpful for keys
+      tempId: Math.random(),
       productName: ing.product ? ing.product.name : 'Unknown',
       productKcal: ing.product ? ing.product.kcal : 0,
     }));
@@ -100,11 +105,32 @@ const DishesPage = () => {
 
     setSelectedProductId('');
     setIngredientWeight('');
+    setSearchIngredient('');
   };
 
   const removeIngredient = (tempId) => {
     setIngredients(ingredients.filter(i => i.tempId !== tempId));
   };
+
+  const handleQuickCreate = async (e) => {
+      e.preventDefault();
+      try {
+          const newProduct = await api.createProduct(quickProduct);
+          setProducts([...products, newProduct]);
+
+          // Select immediately
+          setSelectedProductId(newProduct.id);
+          setIsQuickCreateOpen(false);
+          setQuickProduct({ name: '', kcal: 0, protein: 0, fat: 0, carbs: 0 });
+      } catch (err) {
+          alert('Failed to create product: ' + (err.response?.data?.detail || err.message));
+      }
+  };
+
+  // Filtered products for ingredient selection
+  const filteredProducts = products.filter(p =>
+      p.name.toLowerCase().includes(searchIngredient.toLowerCase())
+  );
 
   const calculateTotalRawWeight = () => {
     return ingredients.reduce((sum, item) => sum + item.weight_raw, 0);
@@ -116,7 +142,6 @@ const DishesPage = () => {
 
     if (finalWeight <= 0) return { kcal: 0 };
 
-    // Calculate total raw macros
     let totalKcal = 0;
     ingredients.forEach(item => {
        const p = products.find(prod => prod.id === item.product_id);
@@ -125,7 +150,6 @@ const DishesPage = () => {
        }
     });
 
-    // Per 100g of FINAL dish
     const factor = 100 / finalWeight;
     return {
       kcal: (totalKcal * factor).toFixed(1),
@@ -204,8 +228,29 @@ const DishesPage = () => {
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={editingDish ? 'Edit Dish' : 'Create Dish'}
+        title={isQuickCreateOpen ? "Create New Ingredient" : (editingDish ? 'Edit Dish' : 'Create Dish')}
       >
+        {isQuickCreateOpen ? (
+           <form onSubmit={handleQuickCreate} className="space-y-4">
+              <Input
+                label="Name"
+                value={quickProduct.name}
+                onChange={(e) => setQuickProduct({...quickProduct, name: e.target.value})}
+                required
+                autoFocus
+              />
+              <div className="grid grid-cols-2 gap-4">
+                 <Input label="Kcal" type="number" step="0.1" value={quickProduct.kcal} onChange={(e) => setQuickProduct({...quickProduct, kcal: parseFloat(e.target.value)})} />
+                 <Input label="Protein" type="number" step="0.1" value={quickProduct.protein} onChange={(e) => setQuickProduct({...quickProduct, protein: parseFloat(e.target.value)})} />
+                 <Input label="Fat" type="number" step="0.1" value={quickProduct.fat} onChange={(e) => setQuickProduct({...quickProduct, fat: parseFloat(e.target.value)})} />
+                 <Input label="Carbs" type="number" step="0.1" value={quickProduct.carbs} onChange={(e) => setQuickProduct({...quickProduct, carbs: parseFloat(e.target.value)})} />
+              </div>
+              <div className="flex justify-between pt-4">
+                 <Button variant="ghost" onClick={() => setIsQuickCreateOpen(false)}>Back</Button>
+                 <Button type="submit">Create & Select</Button>
+              </div>
+           </form>
+        ) : (
         <div className="space-y-4">
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative" role="alert">
@@ -233,27 +278,58 @@ const DishesPage = () => {
               {ingredients.length === 0 && <p className="text-sm text-gray-500">No ingredients added.</p>}
             </div>
 
-            <div className="flex space-x-2 items-end">
-              <div className="flex-1">
-                 <Select
-                    label="Add Product"
-                    value={selectedProductId}
-                    onChange={(e) => setSelectedProductId(e.target.value)}
-                    options={[
-                        { label: 'Select product...', value: '' },
-                        ...products.map(p => ({ label: p.name, value: p.id }))
-                    ]}
-                 />
+            <div className="flex flex-col space-y-2">
+              {/* Ingredient Search / Select */}
+              <div className="relative">
+                  <Input
+                      placeholder="Search or Select Product..."
+                      value={searchIngredient}
+                      onChange={(e) => {
+                          setSearchIngredient(e.target.value);
+                          setSelectedProductId(''); // Reset select if typing
+                      }}
+                  />
+                  {/* Dropdown for filtering */}
+                  {searchIngredient && !selectedProductId && (
+                      <div className="absolute z-10 w-full bg-white border border-gray-300 mt-1 max-h-40 overflow-y-auto shadow-lg">
+                          {filteredProducts.map(p => (
+                              <div
+                                  key={p.id}
+                                  className="p-2 hover:bg-gray-100 cursor-pointer"
+                                  onClick={() => {
+                                      setSelectedProductId(p.id);
+                                      setSearchIngredient(p.name);
+                                  }}
+                              >
+                                  {p.name}
+                              </div>
+                          ))}
+                          {filteredProducts.length === 0 && (
+                              <div
+                                  className="p-2 hover:bg-gray-100 cursor-pointer text-blue-600 font-medium"
+                                  onClick={() => {
+                                      setQuickProduct({...quickProduct, name: searchIngredient});
+                                      setIsQuickCreateOpen(true);
+                                  }}
+                              >
+                                  + Create "{searchIngredient}"
+                              </div>
+                          )}
+                      </div>
+                  )}
               </div>
-              <div className="w-24">
-                <Input
-                  label="Weight (g)"
-                  type="number"
-                  value={ingredientWeight}
-                  onChange={(e) => setIngredientWeight(e.target.value)}
-                />
+
+              <div className="flex space-x-2 items-end">
+                <div className="w-24">
+                    <Input
+                    label="Weight (g)"
+                    type="number"
+                    value={ingredientWeight}
+                    onChange={(e) => setIngredientWeight(e.target.value)}
+                    />
+                </div>
+                <Button onClick={addIngredient} variant="secondary" disabled={!selectedProductId}>Add</Button>
               </div>
-              <Button onClick={addIngredient} variant="secondary">Add</Button>
             </div>
           </div>
 
@@ -299,6 +375,7 @@ const DishesPage = () => {
             </div>
           </div>
         </div>
+        )}
       </Modal>
     </div>
   );

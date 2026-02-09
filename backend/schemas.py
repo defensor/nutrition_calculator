@@ -94,6 +94,11 @@ class LogEntryBase(BaseModel):
 class LogEntryCreate(LogEntryBase):
     items: List[LogEntryItemCreate]
 
+class LogEntryUpdate(BaseModel):
+    meal_type: Optional[MealType] = None
+    consumed_weight: Optional[float] = None
+    # potentially other fields if we want to edit content, but drag-n-drop mainly needs meal_type
+
 class LogEntry(LogEntryBase):
     id: int
     items: List[LogEntryItem] = []

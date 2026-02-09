@@ -1,13 +1,22 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { useUser } from '../context/UserContext';
+import Select from './ui/Select';
+import Button from './ui/Button';
 
 const Layout = ({ children }) => {
   const location = useLocation();
+  const { users, currentUser, setCurrentUser, handleCreateUser } = useUser();
+
   const navItems = [
-    { label: 'Diary', path: '/' },
+    { label: 'Calendar', path: '/' },
     { label: 'Products', path: '/products' },
     { label: 'Dishes', path: '/dishes' },
   ];
+
+  // Also highlight Calendar if we are in diary view
+  const isDiary = location.pathname.startsWith('/diary/');
+  const activePath = isDiary ? '/' : location.pathname;
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900">
@@ -24,7 +33,7 @@ const Layout = ({ children }) => {
                     key={item.path}
                     to={item.path}
                     className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
-                      location.pathname === item.path
+                      activePath === item.path
                         ? 'border-blue-500 text-gray-900'
                         : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
                     }`}
@@ -33,6 +42,18 @@ const Layout = ({ children }) => {
                   </Link>
                 ))}
               </div>
+            </div>
+
+            {/* User Selector in Header */}
+            <div className="flex items-center">
+                <div className="w-40 mr-2">
+                    <Select
+                        value={currentUser}
+                        onChange={(e) => setCurrentUser(e.target.value)}
+                        options={users.map(u => ({ label: u.name, value: u.id }))}
+                    />
+                </div>
+                <Button onClick={handleCreateUser} variant="secondary" className="px-2 py-1">+</Button>
             </div>
           </div>
         </div>

@@ -119,6 +119,9 @@ def get_log_entries(db: Session, user_id: int, date: date):
     ).all()
     return entries
 
+def get_log_entry(db: Session, entry_id: int):
+    return db.query(models.LogEntry).filter(models.LogEntry.id == entry_id).first()
+
 def create_log_entry(db: Session, entry: schemas.LogEntryCreate):
     db_entry = models.LogEntry(
         user_id=entry.user_id,
@@ -139,6 +142,21 @@ def create_log_entry(db: Session, entry: schemas.LogEntryCreate):
             weight_raw=item.weight_raw
         )
         db.add(db_item)
+
+    db.commit()
+    db.refresh(db_entry)
+    return db_entry
+
+def update_log_entry(db: Session, entry_id: int, update: schemas.LogEntryUpdate):
+    db_entry = get_log_entry(db, entry_id)
+    if not db_entry:
+        return None
+
+    if update.meal_type is not None:
+        db_entry.meal_type = update.meal_type
+
+    if update.consumed_weight is not None:
+        db_entry.consumed_weight = update.consumed_weight
 
     db.commit()
     db.refresh(db_entry)
