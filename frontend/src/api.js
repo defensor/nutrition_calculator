@@ -12,10 +12,12 @@ export const createUser = (name) => api.post('/users/', { name }).then(res => re
 export const getProducts = () => api.get('/products/').then(res => res.data);
 export const createProduct = (product) => api.post('/products/', product).then(res => res.data);
 export const updateProduct = (id, product) => api.put(`/products/${id}`, product).then(res => res.data);
+export const deleteProduct = (id) => api.delete(`/products/${id}`).then(res => res.data);
 
 export const getDishes = () => api.get('/dishes/').then(res => res.data);
 export const createDish = (dish) => api.post('/dishes/', dish).then(res => res.data);
 export const updateDish = (id, dish) => api.put(`/dishes/${id}`, dish).then(res => res.data);
+export const deleteDish = (id) => api.delete(`/dishes/${id}`).then(res => res.data);
 
 export const getLogs = (date, userId) => api.get(`/logs/${date}`, { params: { user_id: userId } }).then(res => res.data);
 export const createLogEntry = (entry) => api.post('/logs/', entry).then(res => res.data);

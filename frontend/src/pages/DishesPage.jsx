@@ -8,7 +8,6 @@ import Modal from '../components/ui/Modal';
 const DishesPage = () => {
   const [dishes, setDishes] = useState([]);
   const [products, setProducts] = useState([]);
-  const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDish, setEditingDish] = useState(null);
 
@@ -21,6 +20,8 @@ const DishesPage = () => {
   // Ingredient Add State
   const [selectedProductId, setSelectedProductId] = useState('');
   const [ingredientWeight, setIngredientWeight] = useState('');
+
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     fetchDishes();
@@ -53,6 +54,7 @@ const DishesPage = () => {
     setIngredients([]);
     setSelectedProductId('');
     setIngredientWeight('');
+    setError(null);
     setIsModalOpen(true);
   };
 
@@ -61,6 +63,7 @@ const DishesPage = () => {
     setName(dish.name);
     setIsAutoWeight(dish.is_cooked_weight_auto);
     setCookedWeight(dish.cooked_weight || 0);
+    setError(null);
 
     // Transform ingredients for local state
     // Dish ingredients come with product details nested
@@ -150,8 +153,23 @@ const DishesPage = () => {
       }
       setIsModalOpen(false);
       fetchDishes();
-    } catch (error) {
-      console.error('Failed to save dish', error);
+    } catch (err) {
+      console.error('Failed to save dish', err);
+      setError(err.response?.data?.detail || 'Failed to save dish');
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!editingDish) return;
+    if (!confirm(`Delete dish "${editingDish.name}"?`)) return;
+
+    try {
+      await api.deleteDish(editingDish.id);
+      setIsModalOpen(false);
+      fetchDishes();
+    } catch (err) {
+       console.error('Failed to delete dish', err);
+       setError(err.response?.data?.detail || 'Failed to delete dish');
     }
   };
 
@@ -189,6 +207,12 @@ const DishesPage = () => {
         title={editingDish ? 'Edit Dish' : 'Create Dish'}
       >
         <div className="space-y-4">
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative" role="alert">
+              <span className="block sm:inline">{error}</span>
+            </div>
+          )}
+
           <Input
             label="Dish Name"
             value={name}
@@ -259,11 +283,20 @@ const DishesPage = () => {
             </div>
           </div>
 
-          <div className="flex justify-end space-x-3 pt-4">
-            <Button variant="secondary" onClick={() => setIsModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSubmit}>Save Dish</Button>
+          <div className="flex justify-between pt-4">
+            <div>
+              {editingDish && (
+                 <Button variant="danger" onClick={handleDelete}>
+                   Delete
+                 </Button>
+              )}
+            </div>
+            <div className="flex space-x-3">
+              <Button variant="secondary" onClick={() => setIsModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleSubmit}>Save Dish</Button>
+            </div>
           </div>
         </div>
       </Modal>

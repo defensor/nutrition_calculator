@@ -36,6 +36,21 @@ def update_product(db: Session, product_id: int, product: schemas.ProductCreate)
         db.refresh(db_product)
     return db_product
 
+def delete_product(db: Session, product_id: int):
+    # Check if used in DishIngredient
+    in_dish = db.query(models.DishIngredient).filter(models.DishIngredient.product_id == product_id).first()
+    if in_dish:
+        return False
+
+    # Check if used in LogEntryItem
+    in_log = db.query(models.LogEntryItem).filter(models.LogEntryItem.product_id == product_id).first()
+    if in_log:
+        return False
+
+    db.query(models.Product).filter(models.Product.id == product_id).delete()
+    db.commit()
+    return True
+
 # Dish
 def get_dishes(db: Session, skip: int = 0, limit: int = 100):
     return db.query(models.Dish).offset(skip).limit(limit).all()
@@ -90,6 +105,12 @@ def update_dish(db: Session, dish_id: int, dish: schemas.DishCreate):
     db.refresh(db_dish)
     return db_dish
 
+def delete_dish(db: Session, dish_id: int):
+    db_dish = get_dish(db, dish_id)
+    if db_dish:
+        db.delete(db_dish)
+        db.commit()
+
 # Log Entry
 def get_log_entries(db: Session, user_id: int, date: date):
     entries = db.query(models.LogEntry).filter(
@@ -124,5 +145,7 @@ def create_log_entry(db: Session, entry: schemas.LogEntryCreate):
     return db_entry
 
 def delete_log_entry(db: Session, entry_id: int):
-    db.query(models.LogEntry).filter(models.LogEntry.id == entry_id).delete()
-    db.commit()
+    db_entry = db.query(models.LogEntry).filter(models.LogEntry.id == entry_id).first()
+    if db_entry:
+        db.delete(db_entry)
+        db.commit()

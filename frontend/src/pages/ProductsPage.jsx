@@ -16,6 +16,7 @@ const ProductsPage = () => {
     fat: 0,
     carbs: 0,
   });
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     fetchProducts();
@@ -41,6 +42,7 @@ const ProductsPage = () => {
   const openCreateModal = () => {
     setEditingProduct(null);
     setFormData({ name: '', kcal: 0, protein: 0, fat: 0, carbs: 0 });
+    setError(null);
     setIsModalOpen(true);
   };
 
@@ -53,6 +55,7 @@ const ProductsPage = () => {
       fat: product.fat,
       carbs: product.carbs,
     });
+    setError(null);
     setIsModalOpen(true);
   };
 
@@ -74,8 +77,24 @@ const ProductsPage = () => {
       }
       setIsModalOpen(false);
       fetchProducts();
-    } catch (error) {
-      console.error('Failed to save product', error);
+    } catch (err) {
+      console.error('Failed to save product', err);
+      setError(err.response?.data?.detail || 'Failed to save product');
+    }
+  };
+
+  const handleDelete = async (e) => {
+    e.preventDefault(); // In case it's in a form
+    if (!editingProduct) return;
+    if (!confirm(`Delete product "${editingProduct.name}"?`)) return;
+
+    try {
+      await api.deleteProduct(editingProduct.id);
+      setIsModalOpen(false);
+      fetchProducts();
+    } catch (err) {
+      console.error('Failed to delete product', err);
+      setError(err.response?.data?.detail || 'Failed to delete product');
     }
   };
 
@@ -128,6 +147,12 @@ const ProductsPage = () => {
         title={editingProduct ? 'Edit Product' : 'Create Product'}
       >
         <form onSubmit={handleSubmit} className="space-y-4">
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative" role="alert">
+              <span className="block sm:inline">{error}</span>
+            </div>
+          )}
+
           <Input
             label="Name"
             id="name"
@@ -175,11 +200,20 @@ const ProductsPage = () => {
               onChange={handleInputChange}
             />
           </div>
-          <div className="flex justify-end space-x-3 pt-4">
-            <Button variant="secondary" onClick={() => setIsModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="submit">Save</Button>
+          <div className="flex justify-between pt-4">
+            <div>
+              {editingProduct && (
+                <Button variant="danger" onClick={handleDelete} type="button">
+                  Delete
+                </Button>
+              )}
+            </div>
+            <div className="flex space-x-3">
+              <Button variant="secondary" onClick={() => setIsModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit">Save</Button>
+            </div>
           </div>
         </form>
       </Modal>
