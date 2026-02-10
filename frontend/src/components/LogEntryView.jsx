@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import api from '../api';
+import * as api from '../api';
 import { useSortable, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
