@@ -12,6 +12,8 @@ import { CSS } from '@dnd-kit/utilities';
 
 const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'];
 
+import LogEntryView from '../components/LogEntryView';
+
 // Sortable Item Component
 const SortableItem = ({ id, children }) => {
   const {
@@ -34,112 +36,6 @@ const SortableItem = ({ id, children }) => {
       {children}
     </div>
   );
-};
-
-const LogEntryView = ({ log, onDelete, onUpdate }) => {
-    const [isExpanded, setIsExpanded] = useState(false);
-    const [items, setItems] = useState(log.items || []);
-    const [editItem, setEditItem] = useState(null);
-    const [addItemWeight, setAddItemWeight] = useState('');
-    const [selectedProduct, setSelectedProduct] = useState('');
-    const [products, setProducts] = useState([]); // Need products for adding new items
-
-    // We need to fetch products if we want to add new items here.
-    // Or we can pass products from parent? Passing is better to avoid redundant fetches.
-    // Ideally use context or prop. Let's assume passed in prop for now or fetch.
-
-    useEffect(() => {
-        setItems(log.items || []);
-    }, [log]);
-
-    const handleToggleExpand = () => {
-        setIsExpanded(!isExpanded);
-    };
-
-    const handleUpdateItem = async (itemId, weight) => {
-        try {
-            const updatedLog = await api.updateLogItem(itemId, { weight_raw: parseFloat(weight) });
-            onUpdate(updatedLog);
-        } catch (error) {
-            console.error('Failed to update item', error);
-        }
-    };
-
-    const handleDeleteItem = async (itemId) => {
-        if (!confirm('Remove this ingredient?')) return;
-        try {
-            const updatedLog = await api.deleteLogItem(itemId);
-            onUpdate(updatedLog);
-        } catch (error) {
-            console.error('Failed to delete item', error);
-        }
-    };
-
-    // If we want to add items, we need a small form inside the expanded view
-    // Or a modal.
-
-    return (
-        <div className="bg-white p-4 border-b group">
-            <div className="flex justify-between items-center">
-                <div className="cursor-pointer flex-1" onClick={handleToggleExpand}>
-                    <div className="font-medium flex items-center gap-2">
-                        {log.name}
-                        <span className="text-xs text-gray-400">{isExpanded ? '▼' : '▶'}</span>
-                    </div>
-                    <div className="text-sm text-gray-500">
-                       {Math.round(log.consumed_weight)}g consumed
-                       {log.cooked_weight !== log.consumed_weight && ` (from ${Math.round(log.cooked_weight)}g)`}
-                    </div>
-                </div>
-                <div className="flex items-center gap-4">
-                     <div className="text-right text-sm">
-                        <div>{Math.round(log.total_kcal)} kcal</div>
-                        <div className="text-gray-400 text-xs">
-                          P:{Math.round(log.total_protein)} F:{Math.round(log.total_fat)} C:{Math.round(log.total_carbs)}
-                        </div>
-                     </div>
-                     <button
-                        onPointerDown={(e) => e.stopPropagation()}
-                        onClick={() => onDelete(log.id)}
-                        className="text-red-400 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-                     >
-                        &times;
-                     </button>
-                </div>
-            </div>
-
-            {isExpanded && (
-                <div className="mt-4 pl-4 border-l-2 border-gray-100 space-y-2">
-                    <h4 className="text-xs font-semibold text-gray-500 uppercase">Ingredients</h4>
-                    {items.map(item => (
-                        <div key={item.id} className="flex justify-between items-center text-sm">
-                            <span>{item.product?.name || 'Unknown'}</span>
-                            <div className="flex items-center gap-2">
-                                <input
-                                    type="number"
-                                    className="w-16 px-1 border rounded text-right"
-                                    defaultValue={item.weight_raw}
-                                    onBlur={(e) => {
-                                        if (parseFloat(e.target.value) !== item.weight_raw) {
-                                            handleUpdateItem(item.id, e.target.value);
-                                        }
-                                    }}
-                                />
-                                <span className="text-gray-500">g</span>
-                                <button
-                                    onClick={() => handleDeleteItem(item.id)}
-                                    className="text-red-400 hover:text-red-600"
-                                >
-                                    &times;
-                                </button>
-                            </div>
-                        </div>
-                    ))}
-                    {/* Add Item Button could go here */}
-                </div>
-            )}
-        </div>
-    );
 };
 
 const DiaryPage = () => {
