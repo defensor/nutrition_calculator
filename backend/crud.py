@@ -158,6 +158,9 @@ def update_log_entry(db: Session, entry_id: int, update: schemas.LogEntryUpdate)
     if update.consumed_weight is not None:
         db_entry.consumed_weight = update.consumed_weight
 
+    if update.cooked_weight is not None:
+        db_entry.cooked_weight = update.cooked_weight
+
     db.commit()
     db.refresh(db_entry)
     return db_entry
@@ -183,7 +186,15 @@ def update_log_entry_item(db: Session, item_id: int, update: schemas.LogEntryIte
     db_item = db.query(models.LogEntryItem).filter(models.LogEntryItem.id == item_id).first()
     if not db_item:
         return None
-    db_item.weight_raw = update.weight_raw
+
+    if update.weight_raw is not None:
+        db_item.weight_raw = update.weight_raw
+
+    if update.log_entry_id is not None:
+        # Verify new log entry exists? Or trust FK?
+        # Safe to trust FK constraint will fail if invalid
+        db_item.log_entry_id = update.log_entry_id
+
     db.commit()
     db.refresh(db_item)
     return db_item

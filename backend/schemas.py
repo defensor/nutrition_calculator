@@ -77,7 +77,8 @@ class LogEntryItemCreate(LogEntryItemBase):
     pass
 
 class LogEntryItemUpdate(BaseModel):
-    weight_raw: float
+    weight_raw: Optional[float] = None
+    log_entry_id: Optional[int] = None
 
 class LogEntryItem(LogEntryItemBase):
     id: int
@@ -99,8 +100,8 @@ class LogEntryCreate(LogEntryBase):
 
 class LogEntryUpdate(BaseModel):
     meal_type: Optional[MealType] = None
+    cooked_weight: Optional[float] = None
     consumed_weight: Optional[float] = None
-    # potentially other fields if we want to edit content, but drag-n-drop mainly needs meal_type
 
 class LogEntry(LogEntryBase):
     id: int

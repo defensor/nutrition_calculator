@@ -41,7 +41,7 @@ const SortableItem = ({ id, children }) => {
 const DiaryPage = () => {
   const { date: routeDate } = useParams();
   const navigate = useNavigate();
-  const { currentUser, setCurrentUser, users, handleCreateUser } = useUser();
+  const { currentUser } = useUser();
 
   const date = routeDate || new Date().toISOString().split('T')[0];
 
@@ -52,6 +52,8 @@ const DiaryPage = () => {
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedMealType, setSelectedMealType] = useState('');
+  const [targetLogId, setTargetLogId] = useState(null); // ID of log to add item to
+
   const [search, setSearch] = useState('');
   const [selectedItem, setSelectedItem] = useState(null);
   const [entryDetails, setEntryDetails] = useState({
@@ -98,8 +100,9 @@ const DiaryPage = () => {
       navigate(`/diary/${e.target.value}`);
   };
 
-  const openAddModal = (mealType) => {
+  const openAddModal = (mealType, logId = null) => {
     setSelectedMealType(mealType);
+    setTargetLogId(logId); // If set, we are adding to a specific log (dish)
     setSearch('');
     setSelectedItem(null);
     setEntryDetails({ weight: '', cookedWeight: '', isAteAll: true });
@@ -114,6 +117,16 @@ const DiaryPage = () => {
 
   const handleSearchSelect = (item, type) => {
     setSelectedItem({ ...item, type });
+
+    // If we are adding to a specific log, we only need weight
+    if (targetLogId) {
+        setEntryDetails({
+            weight: '100',
+            cookedWeight: '',
+            isAteAll: false
+        });
+        return;
+    }
 
     if (type === 'dish') {
       const defaultCooked = item.cooked_weight || calculateDishRawWeight(item);
@@ -147,38 +160,47 @@ const DiaryPage = () => {
   const handleAddEntry = async () => {
     if (!selectedItem) return;
 
-    let payload = {
-      user_id: currentUser,
-      date: date,
-      meal_type: selectedMealType,
-      name: selectedItem.name,
-      items: [],
-      cooked_weight: 0,
-      consumed_weight: 0,
-    };
-
-    if (selectedItem.type === 'product') {
-      const weight = parseFloat(entryDetails.weight);
-      payload.cooked_weight = weight;
-      payload.consumed_weight = weight;
-      payload.items = [{ product_id: selectedItem.id, weight_raw: weight }];
-    } else {
-      const cookedWeight = parseFloat(entryDetails.cookedWeight);
-      const consumedWeight = entryDetails.isAteAll ? cookedWeight : parseFloat(entryDetails.weight);
-
-      payload.cooked_weight = cookedWeight;
-      payload.consumed_weight = consumedWeight;
-
-      payload.items = selectedItem.ingredients.map(ing => ({
-        product_id: ing.product_id,
-        weight_raw: ing.weight_raw
-      }));
-    }
-
     try {
-      await api.createLogEntry(payload);
-      setIsModalOpen(false);
-      fetchLogs();
+        if (targetLogId) {
+            // Add item to existing log
+            const weight = parseFloat(entryDetails.weight);
+            await api.addLogItem(targetLogId, {
+                product_id: selectedItem.id,
+                weight_raw: weight
+            });
+        } else {
+            // Create new log entry
+            let payload = {
+              user_id: currentUser,
+              date: date,
+              meal_type: selectedMealType,
+              name: selectedItem.name,
+              items: [],
+              cooked_weight: 0,
+              consumed_weight: 0,
+            };
+
+            if (selectedItem.type === 'product') {
+              const weight = parseFloat(entryDetails.weight);
+              payload.cooked_weight = weight;
+              payload.consumed_weight = weight;
+              payload.items = [{ product_id: selectedItem.id, weight_raw: weight }];
+            } else {
+              const cookedWeight = parseFloat(entryDetails.cookedWeight);
+              const consumedWeight = entryDetails.isAteAll ? cookedWeight : parseFloat(entryDetails.weight);
+
+              payload.cooked_weight = cookedWeight;
+              payload.consumed_weight = consumedWeight;
+
+              payload.items = selectedItem.ingredients.map(ing => ({
+                product_id: ing.product_id,
+                weight_raw: ing.weight_raw
+              }));
+            }
+            await api.createLogEntry(payload);
+        }
+        setIsModalOpen(false);
+        fetchLogs();
     } catch (error) {
       console.error('Failed to add entry', error);
     }
@@ -209,29 +231,83 @@ const DiaryPage = () => {
 
       if (!over) return;
 
-      const draggedId = active.id;
+      const activeId = String(active.id);
+      const overId = String(over.id);
 
-      let newMealType = null;
-      if (MEAL_TYPES.includes(over.id)) {
-          newMealType = over.id;
-      } else {
-          const overLog = logs.find(l => `log-${l.id}` === over.id);
-          if (overLog) {
-              newMealType = overLog.meal_type;
+      // Case 1: Dragging a Log Entry (Meal reordering)
+      if (activeId.startsWith('log-')) {
+          let newMealType = null;
+          if (MEAL_TYPES.includes(overId)) {
+              newMealType = overId;
+          } else if (overId.startsWith('log-')) {
+              // Dropped over another log -> check its meal type
+              const overLogId = parseInt(overId.replace('log-', ''));
+              const overLog = logs.find(l => l.id === overLogId);
+              if (overLog) {
+                  newMealType = overLog.meal_type;
+              }
+          }
+
+          if (newMealType) {
+              const logId = parseInt(activeId.replace('log-', ''));
+              const log = logs.find(l => l.id === logId);
+              if (log && log.meal_type !== newMealType) {
+                  try {
+                      // Optimistic Update
+                      const updatedLogs = logs.map(l => l.id === logId ? { ...l, meal_type: newMealType } : l);
+                      setLogs(updatedLogs);
+                      await api.updateLogEntry(logId, { meal_type: newMealType });
+                      fetchLogs(); // Sync to be sure
+                  } catch (error) {
+                      console.error('Failed to move item', error);
+                      fetchLogs(); // Revert
+                  }
+              }
           }
       }
+      // Case 2: Dragging an Ingredient (Item)
+      else if (activeId.startsWith('item-')) {
+          const itemId = parseInt(activeId.replace('item-', ''));
+          // Find source log
+          const sourceLog = logs.find(log => log.items.some(i => i.id === itemId));
+          if (!sourceLog) return;
+          const sourceItem = sourceLog.items.find(i => i.id === itemId);
 
-      if (newMealType) {
-          const log = logs.find(l => `log-${l.id}` === draggedId);
-          if (log && log.meal_type !== newMealType) {
+          // Identify Target
+          if (overId.startsWith('log-')) {
+              // Target is a Dish/Log
+              const targetLogId = parseInt(overId.replace('log-', ''));
+              if (sourceLog.id === targetLogId) return; // Dropped on self
+
               try {
-                  const updatedLogs = logs.map(l => l.id === log.id ? { ...l, meal_type: newMealType } : l);
-                  setLogs(updatedLogs);
-                  await api.updateLogEntry(log.id, { meal_type: newMealType });
+                  await api.updateLogItem(itemId, { log_entry_id: targetLogId });
                   fetchLogs();
-              } catch (error) {
-                  console.error('Failed to move item', error);
+              } catch (e) {
+                  console.error("Failed to move item to log", e);
+              }
+          } else if (MEAL_TYPES.includes(overId)) {
+              // Target is a Meal Zone
+              // Move to root: Create new Log Entry, Delete old Item
+              // Verify we are actually moving out (if already in a single-item log in this meal, no-op?)
+              // But simpler to just always execute logic.
+              try {
+                  const payload = {
+                    user_id: currentUser,
+                    date: date,
+                    meal_type: overId,
+                    name: sourceItem.product?.name || 'Item',
+                    cooked_weight: sourceItem.weight_raw,
+                    consumed_weight: sourceItem.weight_raw,
+                    items: [{
+                        product_id: sourceItem.product_id,
+                        weight_raw: sourceItem.weight_raw
+                    }]
+                  };
+                  await api.createLogEntry(payload);
+                  await api.deleteLogItem(itemId);
                   fetchLogs();
+              } catch (e) {
+                   console.error("Failed to move item to meal root", e);
               }
           }
       }
@@ -249,7 +325,7 @@ const DiaryPage = () => {
   const totals = getDayTotals();
   const searchResults = search.length > 0 ? [
     ...products.filter(p => p.name.toLowerCase().includes(search.toLowerCase())).map(p => ({ ...p, type: 'product' })),
-    ...dishes.filter(d => d.name.toLowerCase().includes(search.toLowerCase())).map(d => ({ ...d, type: 'dish' }))
+    ...(!targetLogId ? dishes.filter(d => d.name.toLowerCase().includes(search.toLowerCase())).map(d => ({ ...d, type: 'dish' })) : [])
   ] : [];
 
   return (
@@ -297,6 +373,7 @@ const DiaryPage = () => {
                                 log={log}
                                 onDelete={handleDeleteEntry}
                                 onUpdate={handleLogUpdate}
+                                onAddIngredient={(logId) => openAddModal(meal, logId)}
                             />
                         </SortableItem>
                       ))}
@@ -319,7 +396,7 @@ const DiaryPage = () => {
           <DragOverlay>
               {activeDragId ? (
                   <div className="bg-white p-4 shadow-lg rounded border opacity-80 w-full">
-                      Dragging...
+                      {activeDragId.startsWith('log-') ? 'Moving Meal...' : 'Moving Ingredient...'}
                   </div>
               ) : null}
           </DragOverlay>
@@ -340,7 +417,7 @@ const DiaryPage = () => {
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={isQuickCreateOpen ? "Create New Product" : `Add to ${selectedMealType}`}
+        title={isQuickCreateOpen ? "Create New Product" : (targetLogId ? "Add Ingredient" : `Add to ${selectedMealType}`)}
       >
         {isQuickCreateOpen ? (
            <form onSubmit={handleQuickCreate} className="space-y-4">
@@ -401,38 +478,55 @@ const DiaryPage = () => {
                <button onClick={() => setSelectedItem(null)} className="text-sm text-blue-500">Change</button>
             </div>
 
-            {selectedItem.type === 'dish' && (
-               <div className="space-y-2">
-                  <Input
-                    label="Total Cooked Weight (g)"
-                    type="number"
-                    value={entryDetails.cookedWeight}
-                    onChange={(e) => setEntryDetails({...entryDetails, cookedWeight: e.target.value})}
-                  />
-                  <div className="flex items-center space-x-2">
-                     <input
-                        type="checkbox"
-                        checked={entryDetails.isAteAll}
-                        onChange={(e) => setEntryDetails({...entryDetails, isAteAll: e.target.checked})}
-                        className="h-4 w-4"
-                     />
-                     <span>I ate everything ({entryDetails.cookedWeight || 0}g)</span>
-                  </div>
-               </div>
-            )}
+            {/* If adding ingredient to existing log, only show weight */}
+            {targetLogId ? (
+                <div className="space-y-2">
+                    <Input
+                        label="Weight (g)"
+                        type="number"
+                        value={entryDetails.weight}
+                        onChange={(e) => setEntryDetails({...entryDetails, weight: e.target.value})}
+                        autoFocus
+                    />
+                </div>
+            ) : (
+                <>
+                    {selectedItem.type === 'dish' && (
+                    <div className="space-y-2">
+                        <Input
+                            label="Total Cooked Weight (g)"
+                            type="number"
+                            value={entryDetails.cookedWeight}
+                            onChange={(e) => setEntryDetails({...entryDetails, cookedWeight: e.target.value})}
+                        />
+                        <div className="flex items-center space-x-2">
+                            <input
+                                type="checkbox"
+                                checked={entryDetails.isAteAll}
+                                onChange={(e) => setEntryDetails({...entryDetails, isAteAll: e.target.checked})}
+                                className="h-4 w-4"
+                            />
+                            <span>I ate everything ({entryDetails.cookedWeight || 0}g)</span>
+                        </div>
+                    </div>
+                    )}
 
-            {(!entryDetails.isAteAll || selectedItem.type === 'product') && (
-              <Input
-                label="Consumed Weight (g)"
-                type="number"
-                value={entryDetails.weight}
-                onChange={(e) => setEntryDetails({...entryDetails, weight: e.target.value})}
-                autoFocus
-              />
+                    {(!entryDetails.isAteAll || selectedItem.type === 'product') && (
+                    <Input
+                        label="Consumed Weight (g)"
+                        type="number"
+                        value={entryDetails.weight}
+                        onChange={(e) => setEntryDetails({...entryDetails, weight: e.target.value})}
+                        autoFocus
+                    />
+                    )}
+                </>
             )}
 
             <div className="flex justify-end pt-4">
-               <Button onClick={handleAddEntry}>Add Entry</Button>
+               <Button onClick={handleAddEntry}>
+                   {targetLogId ? 'Add Ingredient' : 'Add Entry'}
+               </Button>
             </div>
           </div>
         )}
