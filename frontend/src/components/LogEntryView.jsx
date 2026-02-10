@@ -78,7 +78,11 @@ const LogEntryView = ({ log, onDelete, onUpdate, onAddIngredient }) => {
         }
     };
 
-    const handleSaveHeader = async () => {
+    const handleSaveHeader = async (e) => {
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
         try {
             const updatedLog = await api.updateLogEntry(log.id, {
                 cooked_weight: parseFloat(editValues.cooked_weight),
@@ -108,7 +112,7 @@ const LogEntryView = ({ log, onDelete, onUpdate, onAddIngredient }) => {
                     </div>
 
                     {isEditing ? (
-                        <div className="mt-2 text-sm space-y-1" onPointerDown={(e) => e.stopPropagation()}>
+                        <div className="mt-2 text-sm space-y-1 relative z-50" onPointerDown={(e) => e.stopPropagation()}>
                             <div className="flex items-center gap-2">
                                 <label className="w-24 text-gray-600">Cooked (Total):</label>
                                 <input
@@ -128,8 +132,9 @@ const LogEntryView = ({ log, onDelete, onUpdate, onAddIngredient }) => {
                                 /> g
                             </div>
                             <button
+                                onPointerDown={(e) => e.stopPropagation()}
                                 onClick={handleSaveHeader}
-                                className="mt-1 bg-blue-600 text-white px-2 py-0.5 rounded text-xs"
+                                className="mt-1 bg-blue-600 text-white px-2 py-0.5 rounded text-xs hover:bg-blue-700 cursor-pointer relative z-50"
                             >
                                 Save
                             </button>
