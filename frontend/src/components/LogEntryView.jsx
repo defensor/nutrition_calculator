@@ -1,3 +1,5 @@
+import api from '../api';
+
 const LogEntryView = ({ log, onDelete, onUpdate }) => {
     // If it's a single item (Product), render simple view
     // If it's a group (Dish), render grouped view
@@ -61,7 +63,7 @@ const LogEntryView = ({ log, onDelete, onUpdate }) => {
 
             {/* Ingredients List */}
             <div className="p-2 space-y-2">
-                {log.items.map(item => {
+                {log.items.map((item) => {
                     const macros = calculateItemMacros(item);
                     return (
                         <div key={item.id} className="flex justify-between items-center bg-gray-50 p-2 rounded border border-gray-100">
@@ -105,3 +107,5 @@ const LogEntryView = ({ log, onDelete, onUpdate }) => {
         </div>
     );
 };
+
+export default LogEntryView;
