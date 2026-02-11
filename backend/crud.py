@@ -122,6 +122,25 @@ def get_log_entries(db: Session, user_id: int, date: date):
 def get_log_entry(db: Session, entry_id: int):
     return db.query(models.LogEntry).filter(models.LogEntry.id == entry_id).first()
 
+def recalculate_log_weights(db: Session, entry: models.LogEntry):
+    if not entry:
+        return
+
+    # Refresh items to ensure we have latest data
+    db.refresh(entry)
+
+    if entry.is_cooked_weight_auto:
+        # Sum raw weights of items
+        total_raw = sum(item.weight_raw for item in entry.items)
+        entry.cooked_weight = total_raw
+
+    if entry.is_consumed_weight_auto:
+        entry.consumed_weight = entry.cooked_weight
+
+    db.add(entry)
+    db.commit()
+    db.refresh(entry)
+
 def create_log_entry(db: Session, entry: schemas.LogEntryCreate):
     db_entry = models.LogEntry(
         user_id=entry.user_id,
@@ -129,7 +148,9 @@ def create_log_entry(db: Session, entry: schemas.LogEntryCreate):
         meal_type=entry.meal_type,
         name=entry.name,
         cooked_weight=entry.cooked_weight,
-        consumed_weight=entry.consumed_weight
+        consumed_weight=entry.consumed_weight,
+        is_cooked_weight_auto=entry.is_cooked_weight_auto,
+        is_consumed_weight_auto=entry.is_consumed_weight_auto
     )
     db.add(db_entry)
     db.commit()
@@ -145,6 +166,9 @@ def create_log_entry(db: Session, entry: schemas.LogEntryCreate):
 
     db.commit()
     db.refresh(db_entry)
+
+    recalculate_log_weights(db, db_entry)
+
     return db_entry
 
 def update_log_entry(db: Session, entry_id: int, update: schemas.LogEntryUpdate):
@@ -155,14 +179,29 @@ def update_log_entry(db: Session, entry_id: int, update: schemas.LogEntryUpdate)
     if update.meal_type is not None:
         db_entry.meal_type = update.meal_type
 
-    if update.consumed_weight is not None:
-        db_entry.consumed_weight = update.consumed_weight
+    if update.is_cooked_weight_auto is not None:
+        db_entry.is_cooked_weight_auto = update.is_cooked_weight_auto
+
+    if update.is_consumed_weight_auto is not None:
+        db_entry.is_consumed_weight_auto = update.is_consumed_weight_auto
 
     if update.cooked_weight is not None:
         db_entry.cooked_weight = update.cooked_weight
+        # If user explicitly sets cooked weight, disable auto calculation for it
+        if update.is_cooked_weight_auto is None:
+             db_entry.is_cooked_weight_auto = False
+
+    if update.consumed_weight is not None:
+        db_entry.consumed_weight = update.consumed_weight
+        # If user explicitly sets consumed weight, disable auto calculation for it
+        if update.is_consumed_weight_auto is None:
+             db_entry.is_consumed_weight_auto = False
 
     db.commit()
     db.refresh(db_entry)
+
+    recalculate_log_weights(db, db_entry)
+
     return db_entry
 
 def delete_log_entry(db: Session, entry_id: int):
@@ -180,6 +219,10 @@ def add_log_entry_item(db: Session, entry_id: int, item: schemas.LogEntryItemCre
     db.add(db_item)
     db.commit()
     db.refresh(db_item)
+
+    db_entry = get_log_entry(db, entry_id)
+    recalculate_log_weights(db, db_entry)
+
     return db_item
 
 def update_log_entry_item(db: Session, item_id: int, update: schemas.LogEntryItemUpdate):
@@ -187,20 +230,35 @@ def update_log_entry_item(db: Session, item_id: int, update: schemas.LogEntryIte
     if not db_item:
         return None
 
+    old_log_id = db_item.log_entry_id
+
     if update.weight_raw is not None:
         db_item.weight_raw = update.weight_raw
 
     if update.log_entry_id is not None:
-        # Verify new log entry exists? Or trust FK?
-        # Safe to trust FK constraint will fail if invalid
         db_item.log_entry_id = update.log_entry_id
 
     db.commit()
     db.refresh(db_item)
+
+    # Recalculate for current log entry
+    db_entry = get_log_entry(db, db_item.log_entry_id)
+    recalculate_log_weights(db, db_entry)
+
+    # If moved, recalculate old log entry too
+    if update.log_entry_id is not None and update.log_entry_id != old_log_id:
+        old_entry = get_log_entry(db, old_log_id)
+        recalculate_log_weights(db, old_entry)
+
     return db_item
 
 def delete_log_entry_item(db: Session, item_id: int):
     db_item = db.query(models.LogEntryItem).filter(models.LogEntryItem.id == item_id).first()
     if db_item:
+        entry_id = db_item.log_entry_id
         db.delete(db_item)
         db.commit()
+
+        db_entry = get_log_entry(db, entry_id)
+        if db_entry:
+            recalculate_log_weights(db, db_entry)

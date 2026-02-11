@@ -94,6 +94,8 @@ class LogEntryBase(BaseModel):
     name: str
     cooked_weight: float
     consumed_weight: float
+    is_cooked_weight_auto: bool = True
+    is_consumed_weight_auto: bool = True
 
 class LogEntryCreate(LogEntryBase):
     items: List[LogEntryItemCreate]
@@ -102,6 +104,8 @@ class LogEntryUpdate(BaseModel):
     meal_type: Optional[MealType] = None
     cooked_weight: Optional[float] = None
     consumed_weight: Optional[float] = None
+    is_cooked_weight_auto: Optional[bool] = None
+    is_consumed_weight_auto: Optional[bool] = None
 
 class LogEntry(LogEntryBase):
     id: int

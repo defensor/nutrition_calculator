@@ -60,6 +60,8 @@ class LogEntry(Base):
 
     cooked_weight = Column(Float) # Total weight of the prepared batch
     consumed_weight = Column(Float) # Weight consumed by user
+    is_cooked_weight_auto = Column(Boolean, default=True) # If true, cooked_weight = sum of raw ingredients
+    is_consumed_weight_auto = Column(Boolean, default=True) # If true, consumed_weight = cooked_weight
 
     user = relationship("User", back_populates="logs")
     items = relationship("LogEntryItem", back_populates="log_entry", cascade="all, delete-orphan")

@@ -178,6 +178,8 @@ const DiaryPage = () => {
               items: [],
               cooked_weight: 0,
               consumed_weight: 0,
+              is_cooked_weight_auto: true, // Default true for new entries
+              is_consumed_weight_auto: true  // Default true for new entries
             };
 
             if (selectedItem.type === 'product') {
@@ -191,6 +193,38 @@ const DiaryPage = () => {
 
               payload.cooked_weight = cookedWeight;
               payload.consumed_weight = consumedWeight;
+
+              // Determine flags
+              // If user modified cooked weight from default/auto, we might want to set is_cooked_weight_auto=false?
+              // The backend defaults to true.
+              // Logic: If user specifically entered a cooked weight that differs from sum of raw... but here we don't know sum of raw easily without calculation.
+              // Simpler: If user checks "I ate everything", is_consumed_weight_auto = true.
+              payload.is_consumed_weight_auto = entryDetails.isAteAll;
+
+              // For cooked weight, typically when adding a dish we assume the weight entered IS the cooked weight.
+              // If it matches the raw sum, it's "auto".
+              // But explicit user input usually overrides "auto".
+              // HOWEVER, the user requirement says: "I choose auto calc... I add dish... then I edit ingredients -> weight should recalc".
+              // This implies when adding, we should have an option "Auto calculate cooked weight".
+              // In this simplified modal, we don't have that checkbox.
+              // Let's assume for Dishes, we default is_cooked_weight_auto = True UNLESS the user changed the cooked weight field manually?
+              // But the user might just be confirming the default.
+              // Let's set it to True by default in backend. If we pass a specific cooked_weight here, backend update logic disables auto.
+              // But create logic uses the passed value.
+              // If we want to support the usecase "add dish, then edit ingredients -> recalc", we should set is_cooked_weight_auto=True.
+              // But we also pass a cooked_weight. The backend create_log_entry uses both.
+              // If is_cooked_weight_auto is True, backend recalculates cooked_weight immediately after creation based on ingredients.
+              // So the value passed in cooked_weight might be overwritten if is_cooked_weight_auto=True.
+              // This is correct behavior for "Auto".
+              // So we should probably let the user decide in the modal, OR default to Auto.
+              // Given the requirement "options... should be saved", we should probably default to Auto.
+              // But if the Dish definition has a manual cooked weight, maybe we should respect that?
+              // The `Dish` model has `is_cooked_weight_auto`. We should copy that.
+
+              if (selectedItem.type === 'dish') {
+                  payload.is_cooked_weight_auto = selectedItem.is_cooked_weight_auto;
+                  // If dish template was manual, we use manual. If auto, we use auto.
+              }
 
               payload.items = selectedItem.ingredients.map(ing => ({
                 product_id: ing.product_id,
