@@ -264,3 +264,13 @@ def delete_log_entry_item(db: Session, item_id: int):
         db_entry = get_log_entry(db, entry_id)
         if db_entry:
             recalculate_log_weights(db, db_entry)
+
+def get_log_entries_between(db: Session, user_id: int, start_date: date, end_date: date):
+    entries = db.query(models.LogEntry).options(
+        joinedload(models.LogEntry.items).joinedload(models.LogEntryItem.product)
+    ).filter(
+        models.LogEntry.user_id == user_id,
+        models.LogEntry.date >= start_date,
+        models.LogEntry.date <= end_date
+    ).all()
+    return entries

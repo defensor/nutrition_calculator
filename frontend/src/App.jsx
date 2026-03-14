@@ -4,14 +4,14 @@ import Layout from './components/Layout';
 import DiaryPage from './pages/DiaryPage';
 import ProductsPage from './pages/ProductsPage';
 import DishesPage from './pages/DishesPage';
-import CalendarPage from './pages/CalendarPage';
+
 
 function App() {
   return (
     <Router>
       <Layout>
         <Routes>
-          <Route path="/" element={<CalendarPage />} />
+          <Route path="/" element={<DiaryPage />} />
           <Route path="/diary/:date" element={<DiaryPage />} />
           <Route path="/products" element={<ProductsPage />} />
           <Route path="/dishes" element={<DishesPage />} />

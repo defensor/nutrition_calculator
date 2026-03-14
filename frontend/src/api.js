@@ -29,3 +29,5 @@ export const updateLogItem = (itemId, data) => api.put(`/log-items/${itemId}`, d
 export const deleteLogItem = (itemId) => api.delete(`/log-items/${itemId}`).then(res => res.data);
 
 export default api;
+
+export const getStats = (date, userId) => api.get(`/stats/${date}`, { params: { user_id: userId } }).then(res => res.data);
