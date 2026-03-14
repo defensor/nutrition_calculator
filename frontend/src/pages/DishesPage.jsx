@@ -112,6 +112,10 @@ const DishesPage = () => {
     setIngredients(ingredients.filter(i => i.tempId !== tempId));
   };
 
+  const updateIngredientWeight = (tempId, newWeight) => {
+    setIngredients(ingredients.map(i => i.tempId === tempId ? { ...i, weight_raw: newWeight } : i));
+  };
+
   const handleQuickCreate = async (e) => {
       e.preventDefault();
       try {
@@ -133,7 +137,7 @@ const DishesPage = () => {
   );
 
   const calculateTotalRawWeight = () => {
-    return ingredients.reduce((sum, item) => sum + item.weight_raw, 0);
+    return ingredients.reduce((sum, item) => sum + (parseFloat(item.weight_raw) || 0), 0);
   };
 
   const calculateDishMacros = () => {
@@ -146,7 +150,7 @@ const DishesPage = () => {
     ingredients.forEach(item => {
        const p = products.find(prod => prod.id === item.product_id);
        if (p) {
-         totalKcal += (p.kcal * item.weight_raw) / 100;
+         totalKcal += (p.kcal * (parseFloat(item.weight_raw) || 0)) / 100;
        }
     });
 
@@ -165,7 +169,7 @@ const DishesPage = () => {
       cooked_weight: isAutoWeight ? null : parseFloat(cookedWeight),
       ingredients: ingredients.map(i => ({
         product_id: i.product_id,
-        weight_raw: i.weight_raw
+        weight_raw: parseFloat(i.weight_raw) || 0
       }))
     };
 
@@ -269,7 +273,17 @@ const DishesPage = () => {
             <div className="space-y-2 mb-4">
               {ingredients.map((item) => (
                 <div key={item.tempId} className="flex justify-between items-center text-sm bg-gray-50 p-2 rounded">
-                  <span>{item.productName} ({item.weight_raw}g)</span>
+                  <span>{item.productName}</span>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="number"
+                      value={item.weight_raw}
+                      onChange={(e) => updateIngredientWeight(item.tempId, e.target.value)}
+                      className="w-20 px-2 py-1 border rounded text-sm"
+                      placeholder="g"
+                    />
+                    <span className="text-gray-500">g</span>
+                  </div>
                   <button onClick={() => removeIngredient(item.tempId)} className="text-red-500 hover:text-red-700">
                     &times;
                   </button>
