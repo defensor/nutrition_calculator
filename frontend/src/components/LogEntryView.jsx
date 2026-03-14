@@ -181,7 +181,7 @@ const LogEntryView = ({ log, onDelete, onUpdate, onAddIngredient }) => {
                                     <div className="flex-1 cursor-grab active:cursor-grabbing">
                                         <div className="font-medium text-sm">{item.product?.name || 'Unknown'}</div>
                                         <div className="text-xs text-gray-400">
-                                            {Math.round(macros.k)} kcal
+                                            {Math.round(macros.k)} kcal • P: {Math.round(macros.p)}g • F: {Math.round(macros.f)}g • C: {Math.round(macros.c)}g
                                         </div>
                                     </div>
 
