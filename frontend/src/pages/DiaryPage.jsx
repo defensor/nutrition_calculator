@@ -402,16 +402,6 @@ const DiaryPage = () => {
            <h2 className="text-xl font-bold mb-4 text-gray-800">Statistics</h2>
            {stats && (
              <div className="space-y-4">
-               <div className="p-3 bg-blue-50 rounded-lg border border-blue-100">
-                 <div className="text-sm font-semibold text-blue-800 mb-2">Day ({format(new Date(stats.daily.date), 'MMM d')})</div>
-                 <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-sm text-gray-700">
-                   <div>Kcal: <span className="font-bold text-gray-900">{Math.round(stats.daily.kcal)}</span></div>
-                   <div>Protein: <span className="font-bold text-gray-900">{Math.round(stats.daily.protein)}g</span></div>
-                   <div>Fat: <span className="font-bold text-gray-900">{Math.round(stats.daily.fat)}g</span></div>
-                   <div>Carbs: <span className="font-bold text-gray-900">{Math.round(stats.daily.carbs)}g</span></div>
-                 </div>
-               </div>
-
                <div className="p-3 bg-green-50 rounded-lg border border-green-100">
                  <div className="text-sm font-semibold text-green-800 mb-2">Weekly Average</div>
                  <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-sm text-gray-700">
