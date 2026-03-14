@@ -7,6 +7,7 @@ import Select from '../components/ui/Select';
 import Modal from '../components/ui/Modal';
 import { useUser } from '../context/UserContext';
 import { useNotification } from '../context/NotificationContext';
+import { useDialog } from '../context/DialogContext';
 import { DndContext, closestCenter, DragOverlay } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -44,6 +45,7 @@ const DiaryPage = () => {
   const navigate = useNavigate();
   const { currentUser } = useUser();
   const { showNotification } = useNotification();
+  const { confirm } = useDialog();
 
   const date = routeDate || new Date().toISOString().split('T')[0];
 
@@ -244,7 +246,13 @@ const DiaryPage = () => {
   };
 
   const handleDeleteEntry = async (id) => {
-      if (confirm('Delete this entry?')) {
+      const ok = await confirm({
+          title: 'Delete Entry',
+          message: 'Are you sure you want to delete this diary entry?',
+          confirmText: 'Delete',
+          confirmVariant: 'danger'
+      });
+      if (ok) {
           try {
               await api.deleteLogEntry(id);
               fetchLogs();

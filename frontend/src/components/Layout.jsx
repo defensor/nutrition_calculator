@@ -4,6 +4,8 @@ import { useUser } from '../context/UserContext';
 import Select from './ui/Select';
 import Button from './ui/Button';
 import Toast from './ui/Toast';
+import CreateUserModal from './CreateUserModal';
+import ConfirmDialog from './ui/ConfirmDialog';
 
 const Layout = ({ children }) => {
   const location = useLocation();
@@ -63,6 +65,8 @@ const Layout = ({ children }) => {
         {children}
       </main>
       <Toast />
+      <CreateUserModal />
+      <ConfirmDialog />
     </div>
   );
 };

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import * as api from '../api';
+import { useDialog } from '../context/DialogContext';
 import { useSortable, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
@@ -28,6 +29,7 @@ const SortableIngredient = ({ id, children }) => {
 };
 
 const LogEntryView = ({ log, onDelete, onUpdate, onAddIngredient }) => {
+    const { confirm } = useDialog();
     const [isEditing, setIsEditing] = useState(false);
     const [editValues, setEditValues] = useState({
         cooked_weight: log.cooked_weight || 0,
@@ -69,7 +71,13 @@ const LogEntryView = ({ log, onDelete, onUpdate, onAddIngredient }) => {
     };
 
     const handleDeleteItem = async (itemId) => {
-        if (!confirm('Remove this ingredient?')) return;
+        const ok = await confirm({
+            title: 'Remove Ingredient',
+            message: 'Remove this ingredient from the entry?',
+            confirmText: 'Remove',
+            confirmVariant: 'danger'
+        });
+        if (!ok) return;
         try {
             const updatedLog = await api.deleteLogItem(itemId);
             onUpdate(updatedLog);

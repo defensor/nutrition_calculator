@@ -3,8 +3,10 @@ import * as api from '../api';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import Modal from '../components/ui/Modal';
+import { useDialog } from '../context/DialogContext';
 
 const ProductsPage = () => {
+  const { confirm } = useDialog();
   const [products, setProducts] = useState([]);
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -39,10 +41,13 @@ const ProductsPage = () => {
     p.name.toLowerCase().includes(search.toLowerCase())
   );
 
+  const [isDirty, setIsDirty] = useState(false);
+
   const openCreateModal = () => {
     setEditingProduct(null);
     setFormData({ name: '', kcal: 0, protein: 0, fat: 0, carbs: 0 });
     setError(null);
+    setIsDirty(false);
     setIsModalOpen(true);
   };
 
@@ -56,7 +61,21 @@ const ProductsPage = () => {
       carbs: product.carbs,
     });
     setError(null);
+    setIsDirty(false);
     setIsModalOpen(true);
+  };
+
+  const handleCloseModal = async () => {
+    if (isDirty) {
+      const ok = await confirm({
+        title: 'Unsaved Changes',
+        message: 'You have unsaved changes. Are you sure you want to close?',
+        confirmText: 'Discard',
+        confirmVariant: 'danger'
+      });
+      if (!ok) return;
+    }
+    setIsModalOpen(false);
   };
 
   const handleInputChange = (e) => {
@@ -65,6 +84,7 @@ const ProductsPage = () => {
       ...prev,
       [name]: name === 'name' ? value : parseFloat(value) || 0,
     }));
+    setIsDirty(true);
   };
 
   const handleSubmit = async (e) => {
@@ -75,6 +95,7 @@ const ProductsPage = () => {
       } else {
         await api.createProduct(formData);
       }
+      setIsDirty(false);
       setIsModalOpen(false);
       fetchProducts();
     } catch (err) {
@@ -86,7 +107,14 @@ const ProductsPage = () => {
   const handleDelete = async (e) => {
     e.preventDefault(); // In case it's in a form
     if (!editingProduct) return;
-    if (!confirm(`Delete product "${editingProduct.name}"?`)) return;
+
+    const ok = await confirm({
+      title: 'Delete Product',
+      message: `Are you sure you want to delete product "${editingProduct.name}"?`,
+      confirmText: 'Delete',
+      confirmVariant: 'danger'
+    });
+    if (!ok) return;
 
     try {
       await api.deleteProduct(editingProduct.id);
@@ -143,7 +171,7 @@ const ProductsPage = () => {
 
       <Modal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={handleCloseModal}
         title={editingProduct ? 'Edit Product' : 'Create Product'}
       >
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -209,7 +237,7 @@ const ProductsPage = () => {
               )}
             </div>
             <div className="flex space-x-3">
-              <Button variant="secondary" onClick={() => setIsModalOpen(false)}>
+              <Button variant="secondary" onClick={handleCloseModal} type="button">
                 Cancel
               </Button>
               <Button type="submit">Save</Button>
