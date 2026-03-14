@@ -1,4 +1,4 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 import models, schemas
 from datetime import date
 
@@ -113,14 +113,18 @@ def delete_dish(db: Session, dish_id: int):
 
 # Log Entry
 def get_log_entries(db: Session, user_id: int, date: date):
-    entries = db.query(models.LogEntry).filter(
+    entries = db.query(models.LogEntry).options(
+        joinedload(models.LogEntry.items).joinedload(models.LogEntryItem.product)
+    ).filter(
         models.LogEntry.user_id == user_id,
         models.LogEntry.date == date
     ).all()
     return entries
 
 def get_log_entry(db: Session, entry_id: int):
-    return db.query(models.LogEntry).filter(models.LogEntry.id == entry_id).first()
+    return db.query(models.LogEntry).options(
+        joinedload(models.LogEntry.items).joinedload(models.LogEntryItem.product)
+    ).filter(models.LogEntry.id == entry_id).first()
 
 def recalculate_log_weights(db: Session, entry: models.LogEntry):
     if not entry:
@@ -165,11 +169,10 @@ def create_log_entry(db: Session, entry: schemas.LogEntryCreate):
         db.add(db_item)
 
     db.commit()
-    db.refresh(db_entry)
 
     recalculate_log_weights(db, db_entry)
 
-    return db_entry
+    return get_log_entry(db, db_entry.id)
 
 def update_log_entry(db: Session, entry_id: int, update: schemas.LogEntryUpdate):
     db_entry = get_log_entry(db, entry_id)
@@ -198,11 +201,10 @@ def update_log_entry(db: Session, entry_id: int, update: schemas.LogEntryUpdate)
              db_entry.is_consumed_weight_auto = False
 
     db.commit()
-    db.refresh(db_entry)
 
     recalculate_log_weights(db, db_entry)
 
-    return db_entry
+    return get_log_entry(db, db_entry.id)
 
 def delete_log_entry(db: Session, entry_id: int):
     db_entry = db.query(models.LogEntry).filter(models.LogEntry.id == entry_id).first()
