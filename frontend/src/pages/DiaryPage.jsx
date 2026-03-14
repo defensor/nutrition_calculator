@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { format } from 'date-fns';
+import Calendar from 'react-calendar';
+import '../Calendar.css';
 import * as api from '../api';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
@@ -50,6 +53,7 @@ const DiaryPage = () => {
   const date = routeDate || new Date().toISOString().split('T')[0];
 
   const [logs, setLogs] = useState([]);
+  const [stats, setStats] = useState(null);
   const [products, setProducts] = useState([]);
   const [dishes, setDishes] = useState([]);
 
@@ -95,13 +99,15 @@ const DiaryPage = () => {
     try {
       const data = await api.getLogs(date, currentUser);
       setLogs(data);
+      const statsData = await api.getStats(date, currentUser);
+      setStats(statsData);
     } catch (error) {
       console.error('Failed to fetch logs', error);
     }
   };
 
-  const handleDateChange = (e) => {
-      navigate(`/diary/${e.target.value}`);
+  const handleDateChange = (newDate) => {
+      navigate(`/diary/${format(newDate, 'yyyy-MM-dd')}`);
   };
 
   const openAddModal = (mealType, logId = null) => {
@@ -373,19 +379,60 @@ const DiaryPage = () => {
     ...(!targetLogId ? dishes.filter(d => d.name.toLowerCase().includes(search.toLowerCase())).map(d => ({ ...d, type: 'dish' })) : [])
   ] : [];
 
+  const calendarDate = new Date(date);
+
   return (
-    <div className="space-y-6 pb-20">
-      <div className="flex flex-col sm:flex-row gap-4 justify-between bg-white p-4 rounded shadow">
-        <div className="flex items-center gap-2">
-            <h2 className="text-xl font-bold">Diary for</h2>
-            <Input
-                type="date"
-                value={date}
-                onChange={handleDateChange}
-                className="w-40"
-            />
+    <div className="flex flex-col xl:flex-row gap-6 pb-20 items-start">
+      {/* Left sidebar - Calendar and Stats */}
+      <div className="w-full xl:w-80 flex-shrink-0 flex flex-col gap-6 sticky top-4">
+        {/* Calendar */}
+        <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+            <h2 className="text-xl font-bold mb-4 text-gray-800">Select Date</h2>
+            <div className="flex justify-center">
+              <Calendar
+                  onChange={handleDateChange}
+                  value={calendarDate}
+                  className="mx-auto rounded-lg border-0 shadow-sm"
+              />
+            </div>
+        </div>
+
+        {/* Stats Placeholder */}
+        <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+           <h2 className="text-xl font-bold mb-4 text-gray-800">Statistics</h2>
+           {stats && (
+             <div className="space-y-4">
+               <div className="p-3 bg-blue-50 rounded-lg border border-blue-100">
+                 <div className="text-sm font-semibold text-blue-800 mb-2">Day ({format(new Date(stats.daily.date), 'MMM d')})</div>
+                 <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-sm text-gray-700">
+                   <div>Kcal: <span className="font-bold text-gray-900">{Math.round(stats.daily.kcal)}</span></div>
+                   <div>Protein: <span className="font-bold text-gray-900">{Math.round(stats.daily.protein)}g</span></div>
+                   <div>Fat: <span className="font-bold text-gray-900">{Math.round(stats.daily.fat)}g</span></div>
+                   <div>Carbs: <span className="font-bold text-gray-900">{Math.round(stats.daily.carbs)}g</span></div>
+                 </div>
+               </div>
+
+               <div className="p-3 bg-green-50 rounded-lg border border-green-100">
+                 <div className="text-sm font-semibold text-green-800 mb-2">Weekly Average</div>
+                 <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-sm text-gray-700">
+                   <div>Kcal: <span className="font-bold text-gray-900">{Math.round(stats.weekly.kcal)}</span></div>
+                   <div>Protein: <span className="font-bold text-gray-900">{Math.round(stats.weekly.protein)}g</span></div>
+                   <div>Fat: <span className="font-bold text-gray-900">{Math.round(stats.weekly.fat)}g</span></div>
+                   <div>Carbs: <span className="font-bold text-gray-900">{Math.round(stats.weekly.carbs)}g</span></div>
+                 </div>
+               </div>
+             </div>
+           )}
         </div>
       </div>
+
+      {/* Main Content - Diary */}
+      <div className="flex-1 w-full space-y-6">
+        <div className="flex flex-col sm:flex-row gap-4 justify-between bg-white p-4 rounded-xl shadow-sm border border-gray-100 items-center">
+            <h2 className="text-2xl font-bold text-gray-800">Diary for {format(calendarDate, 'MMMM d, yyyy')}</h2>
+            {/* The old date picker is optional now, but keeping it for manual entry can be useful */}
+        </div>
+
 
       <DndContext onDragStart={handleDragStart} onDragEnd={handleDragEnd} collisionDetection={closestCenter}>
           {MEAL_TYPES.map(meal => {
@@ -448,7 +495,7 @@ const DiaryPage = () => {
       </DndContext>
 
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-4 shadow-lg z-10">
-         <div className="max-w-4xl mx-auto flex justify-between items-center">
+         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full flex justify-between items-center">
             <div className="font-bold text-lg">Day Total</div>
             <div className="flex gap-4 text-sm sm:text-base">
                <span className="font-bold text-blue-600">{Math.round(totals.kcal)} kcal</span>
@@ -459,6 +506,7 @@ const DiaryPage = () => {
          </div>
       </div>
 
+      </div>
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}

@@ -192,3 +192,48 @@ def delete_log_entry_item(item_id: int, db: Session = Depends(get_db)):
 
     db_entry = crud.get_log_entry(db, entry_id)
     return calculate_log_macros(db_entry)
+
+from datetime import timedelta
+
+@app.get("/stats/{date_str}", response_model=schemas.StatsResponse)
+def read_stats(date_str: date, user_id: int, db: Session = Depends(get_db)):
+    # Calculate daily stats
+    daily_entries = crud.get_log_entries(db, user_id=user_id, date=date_str)
+    daily_stats = schemas.DayStats(date=date_str, kcal=0, protein=0, fat=0, carbs=0)
+    for e in daily_entries:
+        pydantic_entry = calculate_log_macros(e)
+        daily_stats.kcal += pydantic_entry.total_kcal or 0
+        daily_stats.protein += pydantic_entry.total_protein or 0
+        daily_stats.fat += pydantic_entry.total_fat or 0
+        daily_stats.carbs += pydantic_entry.total_carbs or 0
+
+    # Calculate weekly stats
+    # Monday is 0, Sunday is 6
+    start_of_week = date_str - timedelta(days=date_str.weekday())
+    end_of_week = start_of_week + timedelta(days=6)
+
+    today = date.today()
+
+    # We only want past days in this week (days < today)
+    # The actual end date for our stats query/calc should be min(end_of_week, today - 1 day)
+    calc_end_date = min(end_of_week, today - timedelta(days=1))
+
+    weekly_stats = schemas.DayStats(date=start_of_week, kcal=0, protein=0, fat=0, carbs=0) # Date field is start of week
+
+    past_days = (calc_end_date - start_of_week).days + 1
+
+    if past_days > 0:
+        weekly_entries = crud.get_log_entries_between(db, user_id=user_id, start_date=start_of_week, end_date=calc_end_date)
+        for e in weekly_entries:
+            pydantic_entry = calculate_log_macros(e)
+            weekly_stats.kcal += pydantic_entry.total_kcal or 0
+            weekly_stats.protein += pydantic_entry.total_protein or 0
+            weekly_stats.fat += pydantic_entry.total_fat or 0
+            weekly_stats.carbs += pydantic_entry.total_carbs or 0
+
+        weekly_stats.kcal /= past_days
+        weekly_stats.protein /= past_days
+        weekly_stats.fat /= past_days
+        weekly_stats.carbs /= past_days
+
+    return schemas.StatsResponse(daily=daily_stats, weekly=weekly_stats)

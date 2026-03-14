@@ -12,7 +12,7 @@ const Layout = ({ children }) => {
   const { users, currentUser, setCurrentUser, handleCreateUser } = useUser();
 
   const navItems = [
-    { label: 'Calendar', path: '/' },
+    { label: 'Dashboard', path: '/' },
     { label: 'Products', path: '/products' },
     { label: 'Dishes', path: '/dishes' },
   ];
@@ -24,7 +24,7 @@ const Layout = ({ children }) => {
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900">
       <nav className="bg-white shadow-sm">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex">
               <div className="flex-shrink-0 flex items-center">
@@ -61,7 +61,7 @@ const Layout = ({ children }) => {
           </div>
         </div>
       </nav>
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {children}
       </main>
       <Toast />

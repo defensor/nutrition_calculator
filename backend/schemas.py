@@ -119,3 +119,14 @@ class LogEntry(LogEntryBase):
 
     class Config:
         from_attributes = True
+
+class DayStats(BaseModel):
+    date: date
+    kcal: float
+    protein: float
+    fat: float
+    carbs: float
+
+class StatsResponse(BaseModel):
+    daily: DayStats
+    weekly: DayStats
