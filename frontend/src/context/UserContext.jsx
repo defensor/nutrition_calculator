@@ -1,13 +1,16 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import * as api from '../api';
+import { useNotification } from './NotificationContext';
 
 const UserContext = createContext();
 
 export const useUser = () => useContext(UserContext);
 
 export const UserProvider = ({ children }) => {
+  const { showNotification } = useNotification();
   const [users, setUsers] = useState([]);
   const [currentUser, setCurrentUser] = useState('');
+  const [isCreateUserModalOpen, setIsCreateUserModalOpen] = useState(false);
 
   useEffect(() => {
     fetchUsers();
@@ -31,26 +34,27 @@ export const UserProvider = ({ children }) => {
     }
   };
 
-  const handleCreateUser = async () => {
-    const name = prompt("Enter new user name:");
-    if (name) {
-      try {
-        const newUser = await api.createUser(name);
-        setUsers([...users, newUser]);
-        setCurrentUser(newUser.id);
-      } catch (error) {
-        alert("Failed to create user: " + (error.response?.data?.detail || error.message));
-      }
-    }
+  const handleCreateUser = () => {
+    setIsCreateUserModalOpen(true);
   };
 
   const handleSetUser = (userId) => {
-      setCurrentUser(userId);
+      setCurrentUser(parseInt(userId));
       localStorage.setItem('currentUser', userId);
   };
 
+  const closeCreateUserModal = () => setIsCreateUserModalOpen(false);
+
   return (
-    <UserContext.Provider value={{ users, currentUser, setCurrentUser: handleSetUser, handleCreateUser }}>
+    <UserContext.Provider value={{
+        users,
+        currentUser,
+        setCurrentUser: handleSetUser,
+        handleCreateUser,
+        isCreateUserModalOpen,
+        closeCreateUserModal,
+        fetchUsers
+    }}>
       {children}
     </UserContext.Provider>
   );

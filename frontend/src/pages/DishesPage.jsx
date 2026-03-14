@@ -4,12 +4,17 @@ import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import Select from '../components/ui/Select';
 import Modal from '../components/ui/Modal';
+import { useNotification } from '../context/NotificationContext';
+import { useDialog } from '../context/DialogContext';
 
 const DishesPage = () => {
+  const { showNotification } = useNotification();
+  const { confirm } = useDialog();
   const [dishes, setDishes] = useState([]);
   const [products, setProducts] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDish, setEditingDish] = useState(null);
+  const [isDirty, setIsDirty] = useState(false);
 
   // Form State
   const [name, setName] = useState('');
@@ -61,6 +66,7 @@ const DishesPage = () => {
     setIngredientWeight('');
     setSearchIngredient('');
     setError(null);
+    setIsDirty(false);
     setIsModalOpen(true);
   };
 
@@ -83,7 +89,21 @@ const DishesPage = () => {
 
     setSelectedProductId('');
     setIngredientWeight('');
+    setIsDirty(false);
     setIsModalOpen(true);
+  };
+
+  const handleCloseModal = async () => {
+    if (isDirty) {
+      const ok = await confirm({
+        title: 'Unsaved Changes',
+        message: 'You have unsaved changes. Are you sure you want to close?',
+        confirmText: 'Discard',
+        confirmVariant: 'danger'
+      });
+      if (!ok) return;
+    }
+    setIsModalOpen(false);
   };
 
   const addIngredient = () => {
@@ -102,6 +122,7 @@ const DishesPage = () => {
         productKcal: product.kcal,
       }
     ]);
+    setIsDirty(true);
 
     setSelectedProductId('');
     setIngredientWeight('');
@@ -110,6 +131,7 @@ const DishesPage = () => {
 
   const removeIngredient = (tempId) => {
     setIngredients(ingredients.filter(i => i.tempId !== tempId));
+    setIsDirty(true);
   };
 
   const updateIngredientWeight = (tempId, newWeight) => {
@@ -127,7 +149,7 @@ const DishesPage = () => {
           setIsQuickCreateOpen(false);
           setQuickProduct({ name: '', kcal: 0, protein: 0, fat: 0, carbs: 0 });
       } catch (err) {
-          alert('Failed to create product: ' + (err.response?.data?.detail || err.message));
+          showNotification('Failed to create product: ' + (err.response?.data?.detail || err.message), 'error');
       }
   };
 
@@ -179,6 +201,7 @@ const DishesPage = () => {
       } else {
         await api.createDish(payload);
       }
+      setIsDirty(false);
       setIsModalOpen(false);
       fetchDishes();
     } catch (err) {
@@ -189,7 +212,13 @@ const DishesPage = () => {
 
   const handleDelete = async () => {
     if (!editingDish) return;
-    if (!confirm(`Delete dish "${editingDish.name}"?`)) return;
+    const ok = await confirm({
+      title: 'Delete Dish',
+      message: `Are you sure you want to delete dish "${editingDish.name}"?`,
+      confirmText: 'Delete',
+      confirmVariant: 'danger'
+    });
+    if (!ok) return;
 
     try {
       await api.deleteDish(editingDish.id);
@@ -231,7 +260,7 @@ const DishesPage = () => {
 
       <Modal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={handleCloseModal}
         title={isQuickCreateOpen ? "Create New Ingredient" : (editingDish ? 'Edit Dish' : 'Create Dish')}
       >
         {isQuickCreateOpen ? (
@@ -265,7 +294,10 @@ const DishesPage = () => {
           <Input
             label="Dish Name"
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) => {
+                setName(e.target.value);
+                setIsDirty(true);
+            }}
           />
 
           <div className="border-t pt-4">
@@ -354,7 +386,10 @@ const DishesPage = () => {
               <input
                 type="checkbox"
                 checked={isAutoWeight}
-                onChange={(e) => setIsAutoWeight(e.target.checked)}
+                onChange={(e) => {
+                    setIsAutoWeight(e.target.checked);
+                    setIsDirty(true);
+                }}
                 className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
               />
               <span className="text-sm text-gray-700">Auto-calculate cooked weight (sum of raw)</span>
@@ -365,7 +400,10 @@ const DishesPage = () => {
                 label="Final Cooked Weight (g)"
                 type="number"
                 value={cookedWeight}
-                onChange={(e) => setCookedWeight(e.target.value)}
+                onChange={(e) => {
+                    setCookedWeight(e.target.value);
+                    setIsDirty(true);
+                }}
               />
             )}
 
@@ -384,7 +422,7 @@ const DishesPage = () => {
               )}
             </div>
             <div className="flex space-x-3">
-              <Button variant="secondary" onClick={() => setIsModalOpen(false)}>
+              <Button variant="secondary" onClick={handleCloseModal}>
                 Cancel
               </Button>
               <Button onClick={handleSubmit}>Save Dish</Button>
