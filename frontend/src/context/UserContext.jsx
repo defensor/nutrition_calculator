@@ -1,11 +1,13 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import * as api from '../api';
+import { useNotification } from './NotificationContext';
 
 const UserContext = createContext();
 
 export const useUser = () => useContext(UserContext);
 
 export const UserProvider = ({ children }) => {
+  const { showNotification } = useNotification();
   const [users, setUsers] = useState([]);
   const [currentUser, setCurrentUser] = useState('');
 
@@ -39,7 +41,7 @@ export const UserProvider = ({ children }) => {
         setUsers([...users, newUser]);
         setCurrentUser(newUser.id);
       } catch (error) {
-        alert("Failed to create user: " + (error.response?.data?.detail || error.message));
+        showNotification("Failed to create user: " + (error.response?.data?.detail || error.message), 'error');
       }
     }
   };

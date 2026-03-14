@@ -6,6 +6,7 @@ import Input from '../components/ui/Input';
 import Select from '../components/ui/Select';
 import Modal from '../components/ui/Modal';
 import { useUser } from '../context/UserContext';
+import { useNotification } from '../context/NotificationContext';
 import { DndContext, closestCenter, DragOverlay } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -42,6 +43,7 @@ const DiaryPage = () => {
   const { date: routeDate } = useParams();
   const navigate = useNavigate();
   const { currentUser } = useUser();
+  const { showNotification } = useNotification();
 
   const date = routeDate || new Date().toISOString().split('T')[0];
 
@@ -153,7 +155,8 @@ const DiaryPage = () => {
           setIsQuickCreateOpen(false);
           setQuickProduct({ name: '', kcal: 0, protein: 0, fat: 0, carbs: 0 });
       } catch (error) {
-          alert('Failed to create product');
+          console.error('Failed to create product', error);
+          showNotification('Failed to create product', 'error');
       }
   };
 

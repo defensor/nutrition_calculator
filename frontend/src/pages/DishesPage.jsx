@@ -4,8 +4,10 @@ import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import Select from '../components/ui/Select';
 import Modal from '../components/ui/Modal';
+import { useNotification } from '../context/NotificationContext';
 
 const DishesPage = () => {
+  const { showNotification } = useNotification();
   const [dishes, setDishes] = useState([]);
   const [products, setProducts] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -123,7 +125,7 @@ const DishesPage = () => {
           setIsQuickCreateOpen(false);
           setQuickProduct({ name: '', kcal: 0, protein: 0, fat: 0, carbs: 0 });
       } catch (err) {
-          alert('Failed to create product: ' + (err.response?.data?.detail || err.message));
+          showNotification('Failed to create product: ' + (err.response?.data?.detail || err.message), 'error');
       }
   };
 

@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import Select from './ui/Select';
 import Button from './ui/Button';
+import Toast from './ui/Toast';
 
 const Layout = ({ children }) => {
   const location = useLocation();
@@ -61,6 +62,7 @@ const Layout = ({ children }) => {
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {children}
       </main>
+      <Toast />
     </div>
   );
 };
