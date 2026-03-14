@@ -413,7 +413,7 @@ const DiaryPage = () => {
                </div>
 
                <div className="p-3 bg-green-50 rounded-lg border border-green-100">
-                 <div className="text-sm font-semibold text-green-800 mb-2">Week</div>
+                 <div className="text-sm font-semibold text-green-800 mb-2">Weekly Average</div>
                  <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-sm text-gray-700">
                    <div>Kcal: <span className="font-bold text-gray-900">{Math.round(stats.weekly.kcal)}</span></div>
                    <div>Protein: <span className="font-bold text-gray-900">{Math.round(stats.weekly.protein)}g</span></div>
