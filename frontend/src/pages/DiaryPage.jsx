@@ -397,7 +397,7 @@ const DiaryPage = () => {
                     <div className="px-4 py-3 bg-gray-50 border-b flex justify-between items-center" id={meal}>
                       <h2 className="text-lg font-semibold capitalize">{meal}</h2>
                       <div className="text-sm text-gray-500">
-                        {Math.round(mealTotals.kcal)} kcal
+                        {Math.round(mealTotals.kcal)} kcal • P: {Math.round(mealTotals.protein)}g • F: {Math.round(mealTotals.fat)}g • C: {Math.round(mealTotals.carbs)}g
                       </div>
                     </div>
                     <div className="divide-y min-h-[50px] bg-white">
