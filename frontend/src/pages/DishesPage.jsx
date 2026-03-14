@@ -274,19 +274,21 @@ const DishesPage = () => {
               {ingredients.map((item) => (
                 <div key={item.tempId} className="flex justify-between items-center text-sm bg-gray-50 p-2 rounded">
                   <span>{item.productName}</span>
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="number"
-                      value={item.weight_raw}
-                      onChange={(e) => updateIngredientWeight(item.tempId, e.target.value)}
-                      className="w-20 px-2 py-1 border rounded text-sm"
-                      placeholder="g"
-                    />
-                    <span className="text-gray-500">g</span>
+                  <div className="flex items-center space-x-4">
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="number"
+                        value={item.weight_raw}
+                        onChange={(e) => updateIngredientWeight(item.tempId, e.target.value)}
+                        className="w-20 px-2 py-1 border rounded text-sm text-right"
+                        placeholder="g"
+                      />
+                      <span className="text-gray-500">g</span>
+                    </div>
+                    <button onClick={() => removeIngredient(item.tempId)} className="text-red-500 hover:text-red-700">
+                      &times;
+                    </button>
                   </div>
-                  <button onClick={() => removeIngredient(item.tempId)} className="text-red-500 hover:text-red-700">
-                    &times;
-                  </button>
                 </div>
               ))}
               {ingredients.length === 0 && <p className="text-sm text-gray-500">No ingredients added.</p>}
