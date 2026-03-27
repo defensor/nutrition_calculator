@@ -14,7 +14,7 @@ def create_user(db: Session, user: schemas.UserCreate):
     return db_user
 
 # Product
-def get_products(db: Session, skip: int = 0, limit: int = 100):
+def get_products(db: Session, skip: int = 0, limit: int  = 0):
     return db.query(models.Product).offset(skip).limit(limit).all()
 
 def get_product(db: Session, product_id: int):
@@ -52,7 +52,7 @@ def delete_product(db: Session, product_id: int):
     return True
 
 # Dish
-def get_dishes(db: Session, skip: int = 0, limit: int = 100):
+def get_dishes(db: Session, skip: int = 0, limit: int = 0):
     return db.query(models.Dish).offset(skip).limit(limit).all()
 
 def get_dish(db: Session, dish_id: int):
