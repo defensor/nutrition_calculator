@@ -76,7 +76,7 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
         raise e
 
 @app.get("/users/", response_model=List[schemas.User])
-def read_users(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+def read_users(skip: int = 0, limit: int = 0, db: Session = Depends(get_db)):
     users = crud.get_users(db)
     return users
 
@@ -91,7 +91,7 @@ def create_product(product: schemas.ProductCreate, db: Session = Depends(get_db)
         raise e
 
 @app.get("/products/", response_model=List[schemas.Product])
-def read_products(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+def read_products(skip: int = 0, limit: int = 0, db: Session = Depends(get_db)):
     products = crud.get_products(db, skip=skip, limit=limit)
     return products
 
@@ -122,7 +122,7 @@ def create_dish(dish: schemas.DishCreate, db: Session = Depends(get_db)):
         raise e
 
 @app.get("/dishes/", response_model=List[schemas.Dish])
-def read_dishes(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+def read_dishes(skip: int = 0, limit: int = 0, db: Session = Depends(get_db)):
     dishes = crud.get_dishes(db, skip=skip, limit=limit)
     return dishes
 
