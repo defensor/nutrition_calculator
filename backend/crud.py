@@ -70,13 +70,14 @@ def create_dish(db: Session, dish: schemas.DishCreate):
     db.commit()
     db.refresh(db_dish)
 
-    for item in dish.ingredients:
-        db_item = models.DishIngredient(
+    db.add_all([
+        models.DishIngredient(
             dish_id=db_dish.id,
             product_id=item.product_id,
             weight_raw=item.weight_raw
         )
-        db.add(db_item)
+        for item in dish.ingredients
+    ])
 
     db.commit()
     db.refresh(db_dish)
@@ -95,13 +96,14 @@ def update_dish(db: Session, dish_id: int, dish: schemas.DishCreate):
     # Update ingredients: simpler to delete all and re-add
     db.query(models.DishIngredient).filter(models.DishIngredient.dish_id == dish_id).delete()
 
-    for item in dish.ingredients:
-        db_item = models.DishIngredient(
+    db.add_all([
+        models.DishIngredient(
             dish_id=db_dish.id,
             product_id=item.product_id,
             weight_raw=item.weight_raw
         )
-        db.add(db_item)
+        for item in dish.ingredients
+    ])
 
     db.commit()
     db.refresh(db_dish)
@@ -162,13 +164,14 @@ def create_log_entry(db: Session, entry: schemas.LogEntryCreate):
     db.commit()
     db.refresh(db_entry)
 
-    for item in entry.items:
-        db_item = models.LogEntryItem(
+    db.add_all([
+        models.LogEntryItem(
             log_entry_id=db_entry.id,
             product_id=item.product_id,
             weight_raw=item.weight_raw
         )
-        db.add(db_item)
+        for item in entry.items
+    ])
 
     db.commit()
 
