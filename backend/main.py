@@ -2,7 +2,7 @@ from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from typing import List, Generator, Optional
-from datetime import date
+from datetime import date, timedelta
 
 import crud, models, schemas
 from database import SessionLocal, engine
@@ -193,7 +193,6 @@ def delete_log_entry_item(item_id: int, db: Session = Depends(get_db)):
     db_entry = crud.get_log_entry(db, entry_id)
     return calculate_log_macros(db_entry)
 
-from datetime import timedelta
 
 @app.get("/stats/{date_str}", response_model=schemas.StatsResponse)
 def read_stats(date_str: date, user_id: int, db: Session = Depends(get_db)):
