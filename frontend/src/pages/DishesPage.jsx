@@ -29,7 +29,7 @@ const DishesPage = () => {
 
   // Quick Create State
   const [isQuickCreateOpen, setIsQuickCreateOpen] = useState(false);
-  const [quickProduct, setQuickProduct] = useState({ name: '', kcal: 0, protein: 0, fat: 0, carbs: 0 });
+  const [quickProduct, setQuickProduct] = useState({ name: '', kcal: 0, protein: 0, fat: 0, fiber: 0, carbs: 0 });
 
   const [error, setError] = useState(null);
 
@@ -147,7 +147,7 @@ const DishesPage = () => {
           // Select immediately
           setSelectedProductId(newProduct.id);
           setIsQuickCreateOpen(false);
-          setQuickProduct({ name: '', kcal: 0, protein: 0, fat: 0, carbs: 0 });
+          setQuickProduct({ name: '', kcal: 0, protein: 0, fat: 0, fiber: 0, carbs: 0 });
       } catch (err) {
           showNotification('Failed to create product: ' + (err.response?.data?.detail || err.message), 'error');
       }
@@ -276,6 +276,7 @@ const DishesPage = () => {
                  <Input label="Kcal" type="number" step="0.1" value={quickProduct.kcal} onChange={(e) => setQuickProduct({...quickProduct, kcal: parseFloat(e.target.value)})} />
                  <Input label="Protein" type="number" step="0.1" value={quickProduct.protein} onChange={(e) => setQuickProduct({...quickProduct, protein: parseFloat(e.target.value)})} />
                  <Input label="Fat" type="number" step="0.1" value={quickProduct.fat} onChange={(e) => setQuickProduct({...quickProduct, fat: parseFloat(e.target.value)})} />
+                 <Input label="Fiber" type="number" step="0.1" value={quickProduct.fiber} onChange={(e) => setQuickProduct({...quickProduct, fiber: parseFloat(e.target.value)})} />
                  <Input label="Carbs" type="number" step="0.1" value={quickProduct.carbs} onChange={(e) => setQuickProduct({...quickProduct, carbs: parseFloat(e.target.value)})} />
               </div>
               <div className="flex justify-between pt-4">

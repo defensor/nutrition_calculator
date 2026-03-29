@@ -72,7 +72,7 @@ const DiaryPage = () => {
 
   // Quick Create State
   const [isQuickCreateOpen, setIsQuickCreateOpen] = useState(false);
-  const [quickProduct, setQuickProduct] = useState({ name: '', kcal: 0, protein: 0, fat: 0, carbs: 0 });
+  const [quickProduct, setQuickProduct] = useState({ name: '', kcal: 0, protein: 0, fat: 0, fiber: 0, carbs: 0 });
   const [activeDragId, setActiveDragId] = useState(null);
 
   useEffect(() => {
@@ -161,7 +161,7 @@ const DiaryPage = () => {
           setProducts([...products, newProduct]);
           handleSearchSelect(newProduct, 'product');
           setIsQuickCreateOpen(false);
-          setQuickProduct({ name: '', kcal: 0, protein: 0, fat: 0, carbs: 0 });
+          setQuickProduct({ name: '', kcal: 0, protein: 0, fat: 0, fiber: 0, carbs: 0 });
       } catch (error) {
           console.error('Failed to create product', error);
           showNotification('Failed to create product', 'error');
@@ -364,13 +364,20 @@ const DiaryPage = () => {
       }
   };
 
+
+  const MACROS = ['kcal', 'protein', 'fat', 'fiber', 'carbs'];
+
+  const calculateMacrosSum = (logsArray) => {
+    return logsArray.reduce((acc, log) => {
+      MACROS.forEach(m => {
+        acc[m] = acc[m] + (log[`total_${m}`] || 0);
+      });
+      return acc;
+    }, { kcal: 0, protein: 0, fat: 0, fiber: 0, carbs: 0 });
+  };
+
   const getDayTotals = () => {
-    return logs.reduce((acc, log) => ({
-      kcal: acc.kcal + (log.total_kcal || 0),
-      protein: acc.protein + (log.total_protein || 0),
-      fat: acc.fat + (log.total_fat || 0),
-      carbs: acc.carbs + (log.total_carbs || 0),
-    }), { kcal: 0, protein: 0, fat: 0, carbs: 0 });
+    return calculateMacrosSum(logs);
   };
 
   const totals = getDayTotals();
@@ -409,6 +416,7 @@ const DiaryPage = () => {
                    <div>Protein: <span className="font-bold text-gray-900">{Math.round(stats.weekly.protein)}g</span></div>
                    <div>Fat: <span className="font-bold text-gray-900">{Math.round(stats.weekly.fat)}g</span></div>
                    <div>Carbs: <span className="font-bold text-gray-900">{Math.round(stats.weekly.carbs)}g</span></div>
+                   <div>Fiber: <span className="font-bold text-gray-900">{Math.round(stats.weekly.fiber)}g</span></div>
                  </div>
                </div>
              </div>
@@ -427,12 +435,7 @@ const DiaryPage = () => {
       <DndContext onDragStart={handleDragStart} onDragEnd={handleDragEnd} collisionDetection={closestCenter}>
           {MEAL_TYPES.map(meal => {
             const mealLogs = logs.filter(l => l.meal_type === meal);
-            const mealTotals = mealLogs.reduce((acc, log) => ({
-                 kcal: acc.kcal + (log.total_kcal || 0),
-                 protein: acc.protein + (log.total_protein || 0),
-                 fat: acc.fat + (log.total_fat || 0),
-                 carbs: acc.carbs + (log.total_carbs || 0),
-            }), { kcal: 0, protein: 0, fat: 0, carbs: 0 });
+            const mealTotals = calculateMacrosSum(mealLogs);
 
             return (
               <SortableContext
@@ -445,7 +448,7 @@ const DiaryPage = () => {
                     <div className="px-4 py-3 bg-gray-50 border-b flex justify-between items-center" id={meal}>
                       <h2 className="text-lg font-semibold capitalize">{meal}</h2>
                       <div className="text-sm text-gray-500">
-                        {Math.round(mealTotals.kcal)} kcal • P: {Math.round(mealTotals.protein)}g • F: {Math.round(mealTotals.fat)}g • C: {Math.round(mealTotals.carbs)}g
+                        {Math.round(mealTotals.kcal)} kcal • P: {Math.round(mealTotals.protein)}g • F: {Math.round(mealTotals.fat)}g • Fi: {Math.round(mealTotals.fiber)}g • C: {Math.round(mealTotals.carbs)}g
                       </div>
                     </div>
                     <div className="divide-y min-h-[50px] bg-white">
@@ -491,6 +494,7 @@ const DiaryPage = () => {
                <span className="font-bold text-blue-600">{Math.round(totals.kcal)} kcal</span>
                <span>P: {Math.round(totals.protein)}g</span>
                <span>F: {Math.round(totals.fat)}g</span>
+               <span>Fi: {Math.round(totals.fiber)}g</span>
                <span>C: {Math.round(totals.carbs)}g</span>
             </div>
          </div>
@@ -515,6 +519,7 @@ const DiaryPage = () => {
                  <Input label="Kcal" type="number" step="0.1" value={quickProduct.kcal} onChange={(e) => setQuickProduct({...quickProduct, kcal: parseFloat(e.target.value)})} />
                  <Input label="Protein" type="number" step="0.1" value={quickProduct.protein} onChange={(e) => setQuickProduct({...quickProduct, protein: parseFloat(e.target.value)})} />
                  <Input label="Fat" type="number" step="0.1" value={quickProduct.fat} onChange={(e) => setQuickProduct({...quickProduct, fat: parseFloat(e.target.value)})} />
+                  <Input label="Fiber" type="number" step="0.1" value={quickProduct.fiber} onChange={(e) => setQuickProduct({...quickProduct, fiber: parseFloat(e.target.value)})} />
                  <Input label="Carbs" type="number" step="0.1" value={quickProduct.carbs} onChange={(e) => setQuickProduct({...quickProduct, carbs: parseFloat(e.target.value)})} />
               </div>
               <div className="flex justify-between pt-4">

@@ -16,6 +16,7 @@ const ProductsPage = () => {
     kcal: 0,
     protein: 0,
     fat: 0,
+    fiber: 0,
     carbs: 0,
   });
   const [error, setError] = useState(null);
@@ -45,7 +46,7 @@ const ProductsPage = () => {
 
   const openCreateModal = () => {
     setEditingProduct(null);
-    setFormData({ name: '', kcal: 0, protein: 0, fat: 0, carbs: 0 });
+    setFormData({ name: '', kcal: 0, protein: 0, fat: 0, fiber: 0, carbs: 0 });
     setError(null);
     setIsDirty(false);
     setIsModalOpen(true);
@@ -58,6 +59,7 @@ const ProductsPage = () => {
       kcal: product.kcal,
       protein: product.protein,
       fat: product.fat,
+      fiber: product.fiber,
       carbs: product.carbs,
     });
     setError(null);
@@ -153,7 +155,7 @@ const ProductsPage = () => {
               <div>
                 <p className="text-sm font-medium text-gray-900">{product.name}</p>
                 <p className="text-sm text-gray-500">
-                  {product.kcal} kcal | P: {product.protein} | F: {product.fat} | C: {product.carbs}
+                  {product.kcal} kcal | P: {product.protein} | F: {product.fat} | Fi: {product.fiber} | C: {product.carbs}
                 </p>
               </div>
               <div className="text-gray-400">
@@ -216,6 +218,15 @@ const ProductsPage = () => {
               type="number"
               step="0.1"
               value={formData.fat}
+              onChange={handleInputChange}
+            />
+            <Input
+              label="Fiber (g)"
+              id="fiber"
+              name="fiber"
+              type="number"
+              step="0.1"
+              value={formData.fiber}
               onChange={handleInputChange}
             />
             <Input

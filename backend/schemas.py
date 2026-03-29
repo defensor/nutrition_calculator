@@ -27,6 +27,7 @@ class ProductBase(BaseModel):
     kcal: float
     protein: float
     fat: float
+    fiber: float
     carbs: float
 
 class ProductCreate(ProductBase):
@@ -116,6 +117,7 @@ class LogEntry(LogEntryBase):
     total_protein: Optional[float] = None
     total_fat: Optional[float] = None
     total_carbs: Optional[float] = None
+    total_fiber: Optional[float] = None
 
     class Config:
         from_attributes = True
@@ -125,6 +127,7 @@ class DayStats(BaseModel):
     kcal: float
     protein: float
     fat: float
+    fiber: float
     carbs: float
 
 class StatsResponse(BaseModel):

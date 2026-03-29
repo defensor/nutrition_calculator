@@ -38,7 +38,7 @@ const LogEntryView = ({ log, onDelete, onUpdate, onAddIngredient }) => {
 
     // Helper to calculate item macros
     const calculateItemMacros = (item) => {
-        if (!item.product) return { k: 0, p: 0, f: 0, c: 0 };
+        if (!item.product) return { k: 0, p: 0, f: 0, fi: 0, c: 0 };
         // If cooked_weight is 0 (or not set), use raw sum (no shrinkage)
         // But backend handles this via ratio.
         // Here we just display what backend sent? No, backend sends `total_kcal`.
@@ -57,6 +57,7 @@ const LogEntryView = ({ log, onDelete, onUpdate, onAddIngredient }) => {
             k: item.product.kcal * factor,
             p: item.product.protein * factor,
             f: item.product.fat * factor,
+            fi: (item.product.fiber || 0) * factor,
             c: item.product.carbs * factor
         };
     };
@@ -161,7 +162,7 @@ const LogEntryView = ({ log, onDelete, onUpdate, onAddIngredient }) => {
                     <div className="text-right text-xs text-blue-600">
                         <span className="font-bold block">{Math.round(log.total_kcal)} kcal</span>
                         <span className="text-[10px] text-gray-500">
-                            P:{Math.round(log.total_protein)} F:{Math.round(log.total_fat)} C:{Math.round(log.total_carbs)}
+                            P:{Math.round(log.total_protein)} F:{Math.round(log.total_fat)} Fi:{Math.round(log.total_fiber)} C:{Math.round(log.total_carbs)}
                         </span>
                     </div>
                     <button
@@ -189,7 +190,7 @@ const LogEntryView = ({ log, onDelete, onUpdate, onAddIngredient }) => {
                                     <div className="flex-1 cursor-grab active:cursor-grabbing">
                                         <div className="font-medium text-sm">{item.product?.name || 'Unknown'}</div>
                                         <div className="text-xs text-gray-400">
-                                            {Math.round(macros.k)} kcal • P: {Math.round(macros.p)}g • F: {Math.round(macros.f)}g • C: {Math.round(macros.c)}g
+                                            {Math.round(macros.k)} kcal • P: {Math.round(macros.p)}g • F: {Math.round(macros.f)}g • Fi: {Math.round(macros.fi)}g • C: {Math.round(macros.c)}g
                                         </div>
                                     </div>
 
