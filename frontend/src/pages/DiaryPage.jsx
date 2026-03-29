@@ -364,14 +364,20 @@ const DiaryPage = () => {
       }
   };
 
+
+  const MACROS = ['kcal', 'protein', 'fat', 'fiber', 'carbs'];
+
+  const calculateMacrosSum = (logsArray) => {
+    return logsArray.reduce((acc, log) => {
+      MACROS.forEach(m => {
+        acc[m] = acc[m] + (log[`total_${m}`] || 0);
+      });
+      return acc;
+    }, { kcal: 0, protein: 0, fat: 0, fiber: 0, carbs: 0 });
+  };
+
   const getDayTotals = () => {
-    return logs.reduce((acc, log) => ({
-      kcal: acc.kcal + (log.total_kcal || 0),
-      protein: acc.protein + (log.total_protein || 0),
-      fat: acc.fat + (log.total_fat || 0),
-      carbs: acc.carbs + (log.total_carbs || 0),
-                fiber: acc.fiber + (log.total_fiber || 0),
-    }), { kcal: 0, protein: 0, fat: 0, fiber: 0, carbs: 0 });
+    return calculateMacrosSum(logs);
   };
 
   const totals = getDayTotals();
@@ -429,13 +435,7 @@ const DiaryPage = () => {
       <DndContext onDragStart={handleDragStart} onDragEnd={handleDragEnd} collisionDetection={closestCenter}>
           {MEAL_TYPES.map(meal => {
             const mealLogs = logs.filter(l => l.meal_type === meal);
-            const mealTotals = mealLogs.reduce((acc, log) => ({
-                 kcal: acc.kcal + (log.total_kcal || 0),
-                 protein: acc.protein + (log.total_protein || 0),
-                 fat: acc.fat + (log.total_fat || 0),
-                 carbs: acc.carbs + (log.total_carbs || 0),
-                fiber: acc.fiber + (log.total_fiber || 0),
-            }), { kcal: 0, protein: 0, fat: 0, fiber: 0, carbs: 0 });
+            const mealTotals = calculateMacrosSum(mealLogs);
 
             return (
               <SortableContext
