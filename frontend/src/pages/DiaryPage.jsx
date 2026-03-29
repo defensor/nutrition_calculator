@@ -494,6 +494,7 @@ const DiaryPage = () => {
                <span className="font-bold text-blue-600">{Math.round(totals.kcal)} kcal</span>
                <span>P: {Math.round(totals.protein)}g</span>
                <span>F: {Math.round(totals.fat)}g</span>
+               <span>Fi: {Math.round(totals.fiber)}g</span>
                <span>C: {Math.round(totals.carbs)}g</span>
             </div>
          </div>
