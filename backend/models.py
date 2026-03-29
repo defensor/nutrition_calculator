@@ -27,6 +27,7 @@ class Product(Base):
     protein = Column(Float, default=0.0)
     fat = Column(Float, default=0.0)
     carbs = Column(Float, default=0.0)
+    fiber = Column(Float, default=0.0)
 
 class Dish(Base):
     __tablename__ = "dishes"

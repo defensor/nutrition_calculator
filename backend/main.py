@@ -40,6 +40,7 @@ def calculate_log_macros(entry: models.LogEntry) -> schemas.LogEntry:
     total_protein = 0.0
     total_fat = 0.0
     total_carbs = 0.0
+    total_fiber = 0.0
 
     if entry.cooked_weight > 0:
         ratio = entry.consumed_weight / entry.cooked_weight
@@ -56,12 +57,14 @@ def calculate_log_macros(entry: models.LogEntry) -> schemas.LogEntry:
                 total_protein += p.protein * factor
                 total_fat += p.fat * factor
                 total_carbs += p.carbs * factor
+                total_fiber += p.fiber * factor
 
     pydantic_entry = schemas.LogEntry.model_validate(entry)
     pydantic_entry.total_kcal = round(total_kcal, 1)
     pydantic_entry.total_protein = round(total_protein, 1)
     pydantic_entry.total_fat = round(total_fat, 1)
     pydantic_entry.total_carbs = round(total_carbs, 1)
+    pydantic_entry.total_fiber = round(total_fiber, 1)
 
     return pydantic_entry
 
@@ -198,13 +201,14 @@ def delete_log_entry_item(item_id: int, db: Session = Depends(get_db)):
 def read_stats(date_str: date, user_id: int, db: Session = Depends(get_db)):
     # Calculate daily stats
     daily_entries = crud.get_log_entries(db, user_id=user_id, date=date_str)
-    daily_stats = schemas.DayStats(date=date_str, kcal=0, protein=0, fat=0, carbs=0)
+    daily_stats = schemas.DayStats(date=date_str, kcal=0, protein=0, fat=0, carbs=0, fiber=0)
     for e in daily_entries:
         pydantic_entry = calculate_log_macros(e)
         daily_stats.kcal += pydantic_entry.total_kcal or 0
         daily_stats.protein += pydantic_entry.total_protein or 0
         daily_stats.fat += pydantic_entry.total_fat or 0
         daily_stats.carbs += pydantic_entry.total_carbs or 0
+        daily_stats.fiber += pydantic_entry.total_fiber or 0
 
     # Calculate weekly stats
     # Monday is 0, Sunday is 6
@@ -217,7 +221,7 @@ def read_stats(date_str: date, user_id: int, db: Session = Depends(get_db)):
     # The actual end date for our stats query/calc should be min(end_of_week, today - 1 day)
     calc_end_date = min(end_of_week, today - timedelta(days=1))
 
-    weekly_stats = schemas.DayStats(date=start_of_week, kcal=0, protein=0, fat=0, carbs=0) # Date field is start of week
+    weekly_stats = schemas.DayStats(date=start_of_week, kcal=0, protein=0, fat=0, carbs=0, fiber=0) # Date field is start of week
 
     past_days = (calc_end_date - start_of_week).days + 1
 
@@ -229,10 +233,12 @@ def read_stats(date_str: date, user_id: int, db: Session = Depends(get_db)):
             weekly_stats.protein += pydantic_entry.total_protein or 0
             weekly_stats.fat += pydantic_entry.total_fat or 0
             weekly_stats.carbs += pydantic_entry.total_carbs or 0
+            weekly_stats.fiber += pydantic_entry.total_fiber or 0
 
         weekly_stats.kcal /= past_days
         weekly_stats.protein /= past_days
         weekly_stats.fat /= past_days
         weekly_stats.carbs /= past_days
+        weekly_stats.fiber /= past_days
 
     return schemas.StatsResponse(daily=daily_stats, weekly=weekly_stats)
