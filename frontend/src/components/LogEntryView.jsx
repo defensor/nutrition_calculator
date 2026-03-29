@@ -38,7 +38,7 @@ const LogEntryView = ({ log, onDelete, onUpdate, onAddIngredient }) => {
 
     // Helper to calculate item macros
     const calculateItemMacros = (item) => {
-        if (!item.product) return { k: 0, p: 0, f: 0, c: 0 };
+        if (!item.product) return { k: 0, p: 0, f: 0, fi: 0, c: 0 };
         // If cooked_weight is 0 (or not set), use raw sum (no shrinkage)
         // But backend handles this via ratio.
         // Here we just display what backend sent? No, backend sends `total_kcal`.
@@ -57,6 +57,7 @@ const LogEntryView = ({ log, onDelete, onUpdate, onAddIngredient }) => {
             k: item.product.kcal * factor,
             p: item.product.protein * factor,
             f: item.product.fat * factor,
+            fi: (item.product.fiber || 0) * factor,
             c: item.product.carbs * factor
         };
     };
