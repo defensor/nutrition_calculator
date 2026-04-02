@@ -33,7 +33,9 @@ const LogEntryView = ({ log, onDelete, onUpdate, onAddIngredient }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [editValues, setEditValues] = useState({
         cooked_weight: log.cooked_weight || 0,
-        consumed_weight: log.consumed_weight || 0
+        consumed_weight: log.consumed_weight || 0,
+        is_cooked_weight_auto: log.is_cooked_weight_auto !== undefined ? log.is_cooked_weight_auto : true,
+        is_consumed_weight_auto: log.is_consumed_weight_auto !== undefined ? log.is_consumed_weight_auto : true
     });
 
     // Helper to calculate item macros
@@ -87,6 +89,9 @@ const LogEntryView = ({ log, onDelete, onUpdate, onAddIngredient }) => {
         }
     };
 
+
+    const rawWeightSum = log.items ? log.items.reduce((sum, item) => sum + (parseFloat(item.weight_raw) || 0), 0) : 0;
+
     const handleSaveHeader = async (e) => {
         if (e) {
             e.preventDefault();
@@ -94,8 +99,10 @@ const LogEntryView = ({ log, onDelete, onUpdate, onAddIngredient }) => {
         }
         try {
             const updatedLog = await api.updateLogEntry(log.id, {
-                cooked_weight: parseFloat(editValues.cooked_weight),
-                consumed_weight: parseFloat(editValues.consumed_weight)
+                cooked_weight: editValues.is_cooked_weight_auto ? null : (parseFloat(editValues.cooked_weight) || 0),
+                consumed_weight: editValues.is_consumed_weight_auto ? null : (parseFloat(editValues.consumed_weight) || 0),
+                is_cooked_weight_auto: editValues.is_cooked_weight_auto,
+                is_consumed_weight_auto: editValues.is_consumed_weight_auto
             });
             onUpdate(updatedLog);
             setIsEditing(false);
@@ -126,19 +133,43 @@ const LogEntryView = ({ log, onDelete, onUpdate, onAddIngredient }) => {
                                 <label className="w-24 text-gray-600">Cooked (Total):</label>
                                 <input
                                     type="number"
-                                    className="border rounded px-1 w-20"
-                                    value={editValues.cooked_weight}
+                                    className={`border rounded px-1 w-20 ${editValues.is_cooked_weight_auto ? 'bg-gray-100 text-gray-500' : ''}`}
+                                    value={editValues.is_cooked_weight_auto ? rawWeightSum : editValues.cooked_weight}
                                     onChange={(e) => setEditValues({...editValues, cooked_weight: e.target.value})}
+                                    disabled={editValues.is_cooked_weight_auto}
                                 /> g
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 ml-24">
+                                <label className="flex items-center gap-1 text-xs text-gray-500 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={editValues.is_cooked_weight_auto}
+                                        onChange={(e) => setEditValues({...editValues, is_cooked_weight_auto: e.target.checked})}
+                                        className="h-3 w-3"
+                                    />
+                                    Calculate automatically
+                                </label>
+                            </div>
+                            <div className="flex items-center gap-2 mt-2">
                                 <label className="w-24 text-gray-600">Consumed:</label>
                                 <input
                                     type="number"
-                                    className="border rounded px-1 w-20"
-                                    value={editValues.consumed_weight}
+                                    className={`border rounded px-1 w-20 ${editValues.is_consumed_weight_auto ? 'bg-gray-100 text-gray-500' : ''}`}
+                                    value={editValues.is_consumed_weight_auto ? (editValues.is_cooked_weight_auto ? rawWeightSum : editValues.cooked_weight) : editValues.consumed_weight}
                                     onChange={(e) => setEditValues({...editValues, consumed_weight: e.target.value})}
+                                    disabled={editValues.is_consumed_weight_auto}
                                 /> g
+                            </div>
+                            <div className="flex items-center gap-2 ml-24">
+                                <label className="flex items-center gap-1 text-xs text-gray-500 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={editValues.is_consumed_weight_auto}
+                                        onChange={(e) => setEditValues({...editValues, is_consumed_weight_auto: e.target.checked})}
+                                        className="h-3 w-3"
+                                    />
+                                    Ate all
+                                </label>
                             </div>
                             <button
                                 onPointerDown={(e) => e.stopPropagation()}
