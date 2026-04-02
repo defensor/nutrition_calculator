@@ -99,8 +99,8 @@ const LogEntryView = ({ log, onDelete, onUpdate, onAddIngredient }) => {
         }
         try {
             const updatedLog = await api.updateLogEntry(log.id, {
-                cooked_weight: editValues.is_cooked_weight_auto ? null : parseFloat(editValues.cooked_weight),
-                consumed_weight: editValues.is_consumed_weight_auto ? null : parseFloat(editValues.consumed_weight),
+                cooked_weight: editValues.is_cooked_weight_auto ? null : (parseFloat(editValues.cooked_weight) || 0),
+                consumed_weight: editValues.is_consumed_weight_auto ? null : (parseFloat(editValues.consumed_weight) || 0),
                 is_cooked_weight_auto: editValues.is_cooked_weight_auto,
                 is_consumed_weight_auto: editValues.is_consumed_weight_auto
             });
@@ -147,7 +147,7 @@ const LogEntryView = ({ log, onDelete, onUpdate, onAddIngredient }) => {
                                         onChange={(e) => setEditValues({...editValues, is_cooked_weight_auto: e.target.checked})}
                                         className="h-3 w-3"
                                     />
-                                    Посчитать автоматически
+                                    Calculate automatically
                                 </label>
                             </div>
                             <div className="flex items-center gap-2 mt-2">
@@ -168,7 +168,7 @@ const LogEntryView = ({ log, onDelete, onUpdate, onAddIngredient }) => {
                                         onChange={(e) => setEditValues({...editValues, is_consumed_weight_auto: e.target.checked})}
                                         className="h-3 w-3"
                                     />
-                                    Съел все
+                                    Ate all
                                 </label>
                             </div>
                             <button
